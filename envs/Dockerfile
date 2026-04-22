@@ -12,7 +12,8 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
     conda-forge::r-optparse \
     conda-forge::r-arrow \
     conda-forge::r-r.utils \
-    conda-forge::r-bedr
+    conda-forge::r-bedr \
+    bioconda::htslib
 
 COPY scripts/*  . 
 CMD ["bash"]
