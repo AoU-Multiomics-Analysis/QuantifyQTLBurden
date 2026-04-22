@@ -3,6 +3,7 @@ library(data.table)
 library(bedr)
 library(optparse)
 
+# build trigger
 ########### FUNCTIONS #############
 
 compute_load_metrics <- function(beta, G, effect_threshold = NULL) {
