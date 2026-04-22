@@ -186,7 +186,7 @@ task CleanBurdenData {
 
     runtime {
         docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
-        memory: "96G"
+        memory: "256G"
         cpu: 2
         disks: "local-disk 2500 SSD"
     }
