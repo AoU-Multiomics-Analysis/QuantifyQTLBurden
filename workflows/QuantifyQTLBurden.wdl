@@ -90,16 +90,16 @@ task shard_afc_by_gene {
         json.dump(shard_paths, f)
     PY
     >>>  
-output {
-    Array[File] shard_files = read_json("shard_manifest.json")
-  }
-
-  runtime {
-    docker: "python:3.10"
-    memory: "64G"
-    cpu: 2
-    disks: "local-disk 2500 SSD"
-
+    output {
+      Array[File] shard_files = glob("shards/*.tsv")
+      File manifest = "shard_manifest.json"
+    }  
+    
+    runtime {
+        docker: "python:3.10"
+        memory: "64G"
+        cpu: 2
+        disks: "local-disk 2500 SSD"
   }
 }
 
