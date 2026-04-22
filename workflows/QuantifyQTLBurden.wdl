@@ -181,7 +181,6 @@ workflow qtl_burden_workflow {
     File IndexVCF
     File AlleleFrequencies
     File ExpressionZscores 
-    File aFC 
     File AncestryAssignments
   }
 
@@ -211,7 +210,7 @@ workflow qtl_burden_workflow {
             MergedQTLBurden = AggregateQTLBurden.QTLBurdenSummary,
             AlleleFrequencies = AlleleFrequencies,
             ExpressionZscores = ExpressionZscores,
-            aFC = aFC,
+            aFC = aFCWeights,
             AncestryAssignments = AncestryAssignments
     } 
 
