@@ -175,7 +175,7 @@ task CleanBurdenData {
     }
     
     command <<<
-    Rscript /tmp/CleanBurdenData.R \
+    Rscript /tmp/CleanQTLBurdenData.R \
         --QTLBurden ~{MergedQTLBurden} \
         --AlleleFrequencies ~{AlleleFrequencies} \
         --ExpressionZscores ~{ExpressionZscores} \
