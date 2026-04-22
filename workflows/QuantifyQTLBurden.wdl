@@ -8,66 +8,89 @@ task shard_afc_by_gene {
     String out_prefix
   }
 
-  command <<<
-    python3 <<PY
-    import csv, json, os
+    command <<<
+      python3 <<PY
+        import csv
+        import json
+        import os
+        import gzip
 
-    infile = "~{afc_tsv}"
-    gene_col = "~{gene_column}"
-    genes_per_shard = ~{genes_per_shard}
-    out_prefix = "~{out_prefix}"
+        infile = "~{afc_tsv}"
+        gene_col = "~{gene_column}"
+        genes_per_shard = ~{genes_per_shard}
+        out_prefix = "~{out_prefix}"
 
-    os.makedirs("shards", exist_ok=True)
+        os.makedirs("shards", exist_ok=True)
 
-    # read and sort rows by gene
-    with open(infile, "r") as fh:
+        # Open plain TSV or TSV.GZ
+        if infile.endswith(".gz"):
+            fh = gzip.open(infile, "rt")
+        else:
+            fh = open(infile, "r")
+
+        # Read all rows so we can sort by gene ID
         reader = csv.DictReader(fh, delimiter="\t")
         header = reader.fieldnames
+        if header is None:
+            raise ValueError("Input file has no header")
+
+        if gene_col not in header:
+            raise ValueError(f"Gene column '{gene_col}' not found in header: {header}")
+
         rows = list(reader)
+        fh.close()
 
-    rows.sort(key=lambda x: x[gene_col])
+        # ABSOLUTELY CRITICAL: sort by gene ID before sharding
+        rows.sort(key=lambda x: x[gene_col])
 
-    shard_idx = 0
-    genes_seen = 0
-    current_gene = None
-    out = None
-    writer = None
-    shard_paths = []
+        shard_idx = 0
+        genes_in_current_shard = 0
+        current_gene = None
+        out = None
+        writer = None
+        shard_paths = []
 
-    def open_shard(idx):
-        path = f"shards/{out_prefix}.shard_{idx:04d}.tsv"
-        fh = open(path, "w")
-        writer = csv.DictWriter(fh, fieldnames=header, delimiter="\t")
-        writer.writeheader()
-        return path, fh, writer
+        def open_shard(idx):
+            path = f"shards/{out_prefix}.shard_{idx:04d}.tsv"
+            handle = open(path, "w", newline="")
+            w = csv.DictWriter(handle, fieldnames=header, delimiter="\t")
+            w.writeheader()
+            return path, handle, w
 
-    for row in rows:
-        gene = row[gene_col]
+        for row in rows:
+            gene = row[gene_col]
 
-        if current_gene != gene:
-            current_gene = gene
-            genes_seen += 1
+            # First row overall
+            if writer is None:
+                shard_path, out, writer = open_shard(shard_idx)
+                shard_paths.append(shard_path)
+                current_gene = gene
+                genes_in_current_shard = 1
 
-            if genes_seen > genes_per_shard:
-                out.close()
-                shard_idx += 1
-                genes_seen = 1
+            # New gene encountered
+            elif gene != current_gene:
+                current_gene = gene
 
-        if genes_seen == 1 and writer is None:
-            shard_path, out, writer = open_shard(shard_idx)
-            shard_paths.append(shard_path)
+                # If current shard already has enough genes, start a new one
+                if genes_in_current_shard >= genes_per_shard:
+                    out.close()
+                    shard_idx += 1
+                    shard_path, out, writer = open_shard(shard_idx)
+                    shard_paths.append(shard_path)
+                    genes_in_current_shard = 1
+                else:
+                    genes_in_current_shard += 1
 
-        writer.writerow(row)
+            writer.writerow(row)
 
-    if out:
-        out.close()
+        if out is not None:
+            out.close()
 
-    with open("shard_manifest.json", "w") as f:
-        json.dump(shard_paths, f)
-
+        with open("shard_manifest.json", "w") as f:
+            json.dump(shard_paths, f)
     PY
-    >>>
-  output {
+    >>>  
+output {
     Array[File] shard_files = read_json("shard_manifest.json")
   }
 
