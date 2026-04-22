@@ -1,6 +1,7 @@
 library(tidyverse)
 library(data.table)
 library(bedr)
+library(optparse)
 
 ########### FUNCTIONS #############
 
@@ -187,7 +188,6 @@ ComputeQTLBurden <- function(ChromList,PosList,BetaList,VariantList,VCF) {
     GenotypeDataSorted <- GenotypeData[VariantBeta$variant,]
     QTLBurden <- compute_load_metrics(VariantBeta$Beta,GenotypeDataSorted)
     QTLBurden
-    
 }
 
 
@@ -196,19 +196,21 @@ option_list <- list(
     optparse::make_option(c("--AllelicFoldChangeData"), type="character", default=NULL,
                         help="Summary file containing alleleic fold change per variant", metavar = "type"),
     optparse::make_option(c("--GenotypeData"), type="character", default=NULL,
+                        help="VCF file to be queried (ideally this is a vcf that has just been subset to the aFC variants)", metavar = "type"),
+    optparse::make_option(c("--OutputPrefix"), type="character", default=NULL,
                         help="VCF file to be queried (ideally this is a vcf that has just been subset to the aFC variants)", metavar = "type")
     )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
 aFCPath <- opt$AllelicFoldChangeData
 PathVCF <- opt$GenotypeData
-
+OutputName <- paste0(opt$OutputPrefix, ".QTLBurdenSummary.tsv.gz")
 ######## RUN QTL BURDEN ANALYSIS ##########
 aFC <- fread(aFCPath)
 
 QTLBurden <- aFC %>% 
     group_by(pid) %>% 
     group_modify(~ ComputeQTLBurden(.x$sid_chr, .x$sid_pos, .x$log2_aFC,.x$sid,PathVCF)) 
-QTL_burden_summary %>% write_tsv('QTLBurdenSummary.tsv.gz')
+QTLBurden %>% write_tsv(OutputName)
 
 
