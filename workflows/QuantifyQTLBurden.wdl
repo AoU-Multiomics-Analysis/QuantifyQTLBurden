@@ -151,7 +151,7 @@ task AggregateQTLBurden {
     done | gzip > QTLBurdenSummary.AllGenes.tsv.gz
     >>>
     runtime {
-        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden:main"
+        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/quantifyqtlburden:main"
         memory: "32G"
         cpu: 2
         disks: "local-disk 2500 SSD"
@@ -185,7 +185,7 @@ task CleanBurdenData {
     >>>
 
     runtime {
-        docker: "ghcr.io/aou-multiomics-analysis/cleanqtlburden:main"
+        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
         memory: "96G"
         cpu: 2
         disks: "local-disk 2500 SSD"
