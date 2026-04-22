@@ -1,8 +1,5 @@
 version 1.0 
 
-
-
-
 task shard_afc_by_gene {
   input {
     File afc_tsv
@@ -144,12 +141,48 @@ task AggregateQTLBurden {
 }
 
 
+
+task CleanBurdenData {
+    input {
+        File MergedQTLBurden
+        File AlleleFrequencies
+        File ExpressionZscores 
+        File aFC 
+        File AncestryAssignments
+    }
+    
+    command <<<
+    Rscript /tmp/CleanBurdenData.R \
+        --QTLBurden ~{MergedQTLBurden} \
+        --AlleleFrequencies ~{AlleleFrequencies} \
+        --ExpressionZscores ~{ExpressionZscores} \
+        --aFC ~{aFC} \
+        --AncestryAssignments ~{AncestryAssignments}
+
+    >>>
+
+    runtime {
+        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden:main"
+        memory: "96G"
+        cpu: 2
+        disks: "local-disk 2500 SSD"
+    }
+ 
+    output {
+        File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
+    }
+}
+
 workflow qtl_burden_workflow {
 
   input {
     File aFCWeights
     File VCF 
     File IndexVCF
+    File AlleleFrequencies
+    File ExpressionZscores 
+    File aFC 
+    File AncestryAssignments
   }
 
   call shard_afc_by_gene {
@@ -172,9 +205,18 @@ workflow qtl_burden_workflow {
         input:
             shard_outputs = QuantifyQTLBurden.ShardBurden
     }
+    
+    call CleanBurdenData {
+        input:
+            MergedQTLBurden = AggregateQTLBurden.QTLBurdenSummary,
+            AlleleFrequencies = AlleleFrequencies,
+            ExpressionZscores = ExpressionZscores,
+            aFC = aFC,
+            AncestryAssignments = AncestryAssignments
+    } 
 
     output {
-        File MergedBurden = AggregateQTLBurden.QTLBurdenSummary 
+        File MergedBurden = CleanBurdenData.QTLBurdenSummaryCleaned 
     }
 }
 
