@@ -3,6 +3,8 @@ name: Docker Image CI
 on:
   push:
     branches: [ "main" ]
+    paths: 'scripts/QTLBurden.R'
+
   #pull_request:
   #  branches: [ "main" ]
 
@@ -28,13 +30,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }}/QuantifyQTLBurden
 
       - name: Build and push docker containers
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./envs/Dockerfile
+          file: ./envs/QuantifyQTLBurden/Dockerfile
           push: True 
           tags: |
             ${{ steps.meta.outputs.tags }}

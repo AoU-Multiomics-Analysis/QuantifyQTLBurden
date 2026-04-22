@@ -119,7 +119,7 @@ task QuantifyQTLBurden {
         --OutputPrefix ~{shard_base}
     >>>
     runtime {
-        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden:main"
+        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/quantifyqtlburden:main"
         memory: "32G"
         cpu: 2
         disks: "local-disk 2500 SSD"
@@ -185,7 +185,7 @@ task CleanBurdenData {
     >>>
 
     runtime {
-        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden:main"
+        docker: "ghcr.io/aou-multiomics-analysis/cleanqtlburden:main"
         memory: "96G"
         cpu: 2
         disks: "local-disk 2500 SSD"
