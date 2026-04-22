@@ -73,7 +73,7 @@ task shard_afc_by_gene {
 
   runtime {
     docker: "python:3.10"
-    memory: "96G"
+    memory: "64G"
     cpu: 2
     disks: "local-disk 2500 SSD"
 
