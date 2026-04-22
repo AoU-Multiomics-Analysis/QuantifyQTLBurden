@@ -55,7 +55,7 @@ PopulationMOCExpectedValues <- aFC %>%
     left_join(AlleleFrequencyDf, by = c("sid" = "ID")) %>%
     distinct() %>%
     pivot_longer(
-        cols = -c(sid, pid, log2_aFC),
+        cols = -c(sid, pid, log2_aFC,sid_chr,sid_pos),
         names_to = "ancestry_pred_other",
         values_to = "af"
     ) %>%
