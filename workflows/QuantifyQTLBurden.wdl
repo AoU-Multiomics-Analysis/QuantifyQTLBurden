@@ -239,6 +239,7 @@ workflow qtl_burden_workflow {
 
     output {
         File MergedBurden = CleanBurdenData.QTLBurdenSummaryCleaned 
+        File AggregatedBurden = AggregateQTLBurden.QTLBurdenSummary
     }
 }
 
