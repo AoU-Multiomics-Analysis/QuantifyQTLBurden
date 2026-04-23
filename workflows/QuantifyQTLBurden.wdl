@@ -200,10 +200,10 @@ workflow qtl_burden_workflow {
 
   input {
     File aFCWeights
-    File VCF 
+    File VCF
     File IndexVCF
     File AlleleFrequencies
-    File ExpressionZscores 
+    File ExpressionZscores
     File AncestryAssignments
     Int GenesPerShard = 500
     Boolean AnnotateBurden = true
@@ -223,30 +223,31 @@ workflow qtl_burden_workflow {
         aFCWeights = shard,
         VCF = VCF,
         IndexVCF = IndexVCF
-        }
     }
-    call AggregateQTLBurden {
-        input:
-            shard_outputs = QuantifyQTLBurden.ShardBurden
-    }
-   
-   if (AnnotateBurden) {
+  }
+
+  call AggregateQTLBurden {
+    input:
+      shard_outputs = QuantifyQTLBurden.ShardBurden
+  }
+
+  if (AnnotateBurden) {
     call CleanBurdenData {
-        input:
-            MergedQTLBurden = AggregateQTLBurden.QTLBurdenSummary,
-            AlleleFrequencies = AlleleFrequencies,
-            ExpressionZscores = ExpressionZscores,
-            aFC = aFCWeights,
-            AncestryAssignments = AncestryAssignments
-        } 
+      input:
+        MergedQTLBurden = AggregateQTLBurden.QTLBurdenSummary,
+        AlleleFrequencies = AlleleFrequencies,
+        ExpressionZscores = ExpressionZscores,
+        aFC = aFCWeights,
+        AncestryAssignments = AncestryAssignments
     }
-    
-    output {
-        File AggregatedBurden = AggregateQTLBurden.QTLBurdenSummary
-        File FinalBurden = select_first([
-          CleanBurdenData.QTLBurdenSummaryCleaned,
-          AggregateQTLBurden.QTLBurdenSummary
-        ])
-    }
+  }
 
-
+  output {
+    File AggregatedBurden = AggregateQTLBurden.QTLBurdenSummary
+    File FinalBurden = select_first([
+      CleanBurdenData.QTLBurdenSummaryCleaned,
+      AggregateQTLBurden.QTLBurdenSummary
+    ])
+    File? CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
+  }
+}
