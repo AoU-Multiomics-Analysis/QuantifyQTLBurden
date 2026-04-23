@@ -205,13 +205,15 @@ workflow qtl_burden_workflow {
     File AlleleFrequencies
     File ExpressionZscores 
     File AncestryAssignments
+    Int GenesPerShard = 500
+    Boolean AnnotateBurden = true
   }
 
   call shard_afc_by_gene {
     input:
       afc_tsv = aFCWeights,
       gene_column = "pid",
-      genes_per_shard = 500,
+      genes_per_shard = GenesPerShard,
       out_prefix = "afc"
   }
 
@@ -227,7 +229,8 @@ workflow qtl_burden_workflow {
         input:
             shard_outputs = QuantifyQTLBurden.ShardBurden
     }
-    
+   
+   if (AnnotateBurden) {
     call CleanBurdenData {
         input:
             MergedQTLBurden = AggregateQTLBurden.QTLBurdenSummary,
@@ -235,12 +238,15 @@ workflow qtl_burden_workflow {
             ExpressionZscores = ExpressionZscores,
             aFC = aFCWeights,
             AncestryAssignments = AncestryAssignments
-    } 
-
-    output {
-        File MergedBurden = CleanBurdenData.QTLBurdenSummaryCleaned 
-        File AggregatedBurden = AggregateQTLBurden.QTLBurdenSummary
+        } 
     }
-}
+    
+    output {
+        File AggregatedBurden = AggregateQTLBurden.QTLBurdenSummary
+        File FinalBurden = select_first([
+          CleanBurdenData.QTLBurdenSummaryCleaned,
+          AggregateQTLBurden.QTLBurdenSummary
+        ])
+    }
 
 
