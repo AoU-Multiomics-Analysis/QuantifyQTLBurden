@@ -80,6 +80,7 @@ EmpiricalVariance <- QTLBurdenMerge %>%
     )
 
 ###### CALCULATE QTL BURDEN Z SCORES #########
+message('Merging all data')
 QTLBurdenZscores <- QTLBurdenMerge %>%
     left_join(PopulationMOCExpectedValues, by = c("pid", "ancestry_pred_other")) %>%
     left_join(EmpiricalVariance, by = c("pid", "ancestry_pred_other")) %>%
@@ -107,6 +108,7 @@ QTLBurdenZscores <- QTLBurdenMerge %>%
         PercentChangeCenteredEffectPopulation >= 175 & PercentChangeCenteredEffectPopulation <= 200 ~ "[175,200]",
         TRUE ~ NA_character_
       )
+    )
 
 QTLBurdenZscores %>% write_tsv('QTLBurdenSummary.cleaned.tsv.gz')
 
