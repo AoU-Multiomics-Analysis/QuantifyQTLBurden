@@ -34,16 +34,15 @@ task CleanBurdenData {
 
 workflow CleanQTLBurden {
     input {
-        File MergedQTLBurden
         File AlleleFrequencies
         File ExpressionZscores 
         File aFCWeights 
         File AncestryAssignments
-        File AggregatedQTLBurden
+        File MergedQTLBurden
     }
     call CleanBurdenData {
       input:
-        MergedQTLBurden = AggregatedQTLBurden,
+        MergedQTLBurden = MergedQTLBurden,
         AlleleFrequencies = AlleleFrequencies,
         ExpressionZscores = ExpressionZscores,
         aFC = aFCWeights,
