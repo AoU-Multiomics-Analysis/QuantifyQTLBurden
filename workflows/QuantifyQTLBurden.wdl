@@ -199,7 +199,7 @@ task CleanBurdenData {
         File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
         File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv" 
-
+        File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
     }
 }
 
@@ -262,5 +262,7 @@ workflow qtl_burden_workflow {
     File? CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
     File? QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
     File? QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
+    File? QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
+
   }
 }

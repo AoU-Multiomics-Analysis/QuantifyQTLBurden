@@ -39,11 +39,23 @@ GeneTypes <- gene_annotations %>% data.frame()%>% select(gene_id,gene_type,gene_
 message('Loading eQTL Susie')
 eQTLSusie <- fread(SusiePath)
 
+
+
 message('Extracting genes with coding variants')
+if ('consequence' %in% colnames(eQTLSusie)) {
 CodingVariantGenes <- eQTLSusie %>% 
     filter(pip > 0.9) %>% 
-    filter(frameshift_variant == TRUE | stop_gained == TRUE) %>% 
-    distinct(molecular_trait_id)
+    filter(str_detect(consequence,'frameshift') | str_detect(consequence,'stop'))   %>%  
+    distinct(molecular_trait_id) %>% 
+    pull(molecular_trait_id)
+} else {
+CodingVariantGenes <- eQTLSusie %>% 
+    filter(pip > 0.9) %>% 
+    filter(frameshift == TRUE | stop_gained == TRUE)   %>%  
+    distinct(molecular_trait_id) %>% 
+    pull(molecular_trait_id)
+}
+
 
 message("Loading ancestry assignments")
 AncestryDf <- fread(PathAncestryAssignments) %>%
@@ -67,7 +79,8 @@ message("Loading burden data and merging")
 QTLBurdenMerge <- fread(BurdenPath) %>%
     left_join(AncestryDf, by = c("sample" = "research_id")) %>%
     mutate(gene_id = str_remove(pid,'\\..*')) %>%
-    left_join(GeneTypes,by = 'gene_id') %>% 
+    left_join(GeneTypes,by = 'gene_id') %>%
+    mutate(CausalCodingVariantPresent = pid %in% CodingVariantGenes) %>% 
     left_join(ExpressionZscores, by = c("pid", "sample" = "sample_id")) %>%
     mutate(
             UpOutlier = ObservedZ > 4,
@@ -175,7 +188,7 @@ GeneBurdenCounts <- QTLBurdenZscores %>%
 GeneBurdenCounts %>% write_tsv('QTLGeneBurdenCounts.tsv.gz')
 
 ###### SUMMARIZE BURDEN GENES PER INDIVIDUAL ########
-
+message('Summarizing number genes per percent bin ')
 KOPassList <- GeneBurdenCounts %>% filter(NumKO < 100) %>% 
 QTLBurdenFiltered <- QTLBurdenZscores %>% 
     filter(!is.na(PercentChangeBin), !is.na(z_score)) %>% 
@@ -200,10 +213,34 @@ MedianGenesPerIndividual <- QTLBurdenFiltered %>%
         median_abs_z = median(median_abs_z_individual, na.rm = TRUE),
         .groups = "drop"
     ) %>%
-    mutate(PercentChangeBin = fct_inorder(PercentChangeBin))      
+    mutate(PercentChangeBin = fct_inorder(PercentChangeBin))  %>% 
+    mutate(GeneCategory = 'All')
 
+MedianGenesPerIndividualCodingVariantGenesRemoved <- QTLBurdenFiltered %>%
+    filter(CausalCodingVariantPresent == FALSE) %>% 
+    group_by(individual_id, PercentChangeBin,gene_type) %>%
+    summarise(
+        n_genes = n(),
+        median_abs_z_individual = median(abs(ObservedZ), na.rm = TRUE),
+        .groups = "drop"
+    ) %>% 
+    group_by(PercentChangeBin,gene_type) %>%
+    summarise(
+        median_genes = median(n_genes, na.rm = TRUE),
+        q25_genes = quantile(n_genes, 0.25, na.rm = TRUE),
+        q75_genes = quantile(n_genes, 0.75, na.rm = TRUE),
+        median_abs_z = median(median_abs_z_individual, na.rm = TRUE),
+        .groups = "drop"
+    ) %>%
+    mutate(PercentChangeBin = fct_inorder(PercentChangeBin)) %>% 
+    mutate(GeneCategory = 'CausalCodingVariantGenesRemoved')
+
+
+MedianGenesSummary <- bind_rows(MedianGenesPerIndividual,MedianGenesPerIndividualCodingVariantGenesRemoved)
+MedianGenesSummary %>% write_tsv('QTLBurdenMedianGenesPerBin.tsv')
 
 ####### COMPUTE OUTLIER ENRICHMENT PER PERCENT CHANGE BIN ##########
+message('Computing outlier enrichment')
 compute_bin_enrichment <- function(df, focal_lower_bound, ref_lower_bound = -10, outlier_col) {
   df2 <- df %>%
     dplyr::mutate(
