@@ -192,7 +192,7 @@ message('Summarizing number genes per percent bin ')
 KOPassList <- GeneBurdenCounts %>% filter(NumKO < 100) %>% 
 QTLBurdenFiltered <- QTLBurdenZscores %>% 
     filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation)) %>% 
-    filter(pid %In% KOPassList) %>% 
+    filter(pid %in% KOPassList) %>% 
     mutate(gene_id = str_remove(pid,'\\..*')) %>% 
     left_join(gene_types,by = 'gene_id')
 
