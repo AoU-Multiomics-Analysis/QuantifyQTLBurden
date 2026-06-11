@@ -97,7 +97,7 @@ QTLBurdenZscores <- QTLBurdenMerge %>%
         PercentChangeCenteredEffectPopulation > -75  & PercentChangeCenteredEffectPopulation <= -50 ~ "(-75,-50]",
         PercentChangeCenteredEffectPopulation > -50  & PercentChangeCenteredEffectPopulation <= -25 ~ "(-50,-25]",
         PercentChangeCenteredEffectPopulation > -25  & PercentChangeCenteredEffectPopulation <= -10 ~ "(-25,-10]",
-        PercentChangeCenteredEffectPopulation > -10  & PercentChangeCenteredEffectPopulation < 10 ~ "(-10,-10)",
+        PercentChangeCenteredEffectPopulation > -10  & PercentChangeCenteredEffectPopulation < 10 ~ "(-10,10)",
         PercentChangeCenteredEffectPopulation >= 10  & PercentChangeCenteredEffectPopulation < 25  ~ "[10,25)",
         PercentChangeCenteredEffectPopulation >= 25  & PercentChangeCenteredEffectPopulation < 50  ~ "[25,50)",
         PercentChangeCenteredEffectPopulation >= 50  & PercentChangeCenteredEffectPopulation < 75  ~ "[50,75)",
@@ -111,5 +111,40 @@ QTLBurdenZscores <- QTLBurdenMerge %>%
     )
 
 QTLBurdenZscores %>% write_tsv('QTLBurdenSummary.cleaned.tsv.gz')
+
+
+
+######  GET  BURDEN COUNTS  #########
+KnockoutCountPerGene <- QTLBurdenZscores %>% 
+    mutate(PercentChange = (2^CenteredEffectPopulation -1) *100) %>% 
+    mutate(PredictedKO = PercentChange < -50) %>% 
+    group_by(pid) %>% 
+    summarize(NumKO = sum(PredictedKO))
+
+
+GeneBurdenCounts <- QTLBurdenZscores %>% 
+  group_by(pid) %>% 
+  summarise(
+    max_abs_burden = max(abs(PercentChangeCenteredEffectPopulation), na.rm = TRUE),
+    mean_abs_burden = mean(abs(PercentChangeCenteredEffectPopulation), na.rm = TRUE),
+    n_deletion_like = sum(PercentChangeCenteredEffectPopulation <= -50, na.rm = TRUE),
+    n_duplication_like = sum(PercentChangeCenteredEffectPopulation >= 50, na.rm = TRUE),
+    n_validated_deletion = sum(
+      PercentChangeCenteredEffectPopulation <= -50 &
+        ObservedZ <= -3,
+      na.rm = TRUE
+    ),
+    n_validated_duplication = sum(
+      PercentChangeCenteredEffectPopulation >= 50 &
+        ObservedZ >= 3,
+      na.rm = TRUE
+    ),
+    has_validated_deletion = n_validated_deletion > 0,
+    has_validated_duplication = n_validated_duplication > 0,
+    .groups = "drop"
+  ) %>% 
+  left_join(KnockoutCountPerGene, by = "pid")
+GeneBurdenCounts %>% write_tsv('QTLGeneBurdenCounts.tsv.gz')
+
 
 
