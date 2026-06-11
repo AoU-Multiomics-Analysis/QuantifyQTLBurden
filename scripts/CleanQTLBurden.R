@@ -18,7 +18,7 @@ option_list <- list(
     optparse::make_option(c("--GTF"), type = "character", default = NULL,
                           help = "GTF file used to get annotate types of genes"),
     optparse::make_option(c("--eQTLSusie"), type = "character", default = NULL,
-                          help = "Susie file containing variant annotations"),
+                          help = "Susie file containing variant annotations")
 )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
