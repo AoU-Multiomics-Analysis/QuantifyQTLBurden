@@ -121,7 +121,7 @@ KnockoutCountPerGene <- QTLBurdenZscores %>%
     group_by(pid) %>% 
     summarize(NumKO = sum(PredictedKO))
 
-
+message('Creating gene count table')
 GeneBurdenCounts <- QTLBurdenZscores %>% 
   group_by(pid) %>% 
   summarise(
