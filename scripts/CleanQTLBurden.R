@@ -2,7 +2,6 @@ library(tidyverse)
 library(data.table)
 library(optparse)
 library(rtracklayer)
-# build trigger
 
 ####### PARSE ARGUMENTS #########
 option_list <- list(
