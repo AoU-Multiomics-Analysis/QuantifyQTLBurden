@@ -7,6 +7,8 @@ task CleanBurdenData {
         File ExpressionZscores 
         File aFC 
         File AncestryAssignments
+        File eQTLSusie
+        File GTF
     }
     
     command <<<
@@ -14,7 +16,9 @@ task CleanBurdenData {
         --QTLBurden ~{MergedQTLBurden} \
         --AlleleFrequencies ~{AlleleFrequencies} \
         --ExpressionZscores ~{ExpressionZscores} \
+        --eQTLSusie ~{eQTLSusie} \
         --aFC ~{aFC} \
+        --GTF ~{GTF} \
         --AncestryAssignments ~{AncestryAssignments}
 
     >>>
@@ -29,6 +33,7 @@ task CleanBurdenData {
     output {
         File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
+        File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv" 
     }
 }
 
@@ -39,6 +44,8 @@ workflow CleanQTLBurden {
         File aFCWeights 
         File AncestryAssignments
         File MergedQTLBurden
+        File eQTLSusie
+        File GTF
     }
     call CleanBurdenData {
       input:
@@ -46,11 +53,14 @@ workflow CleanQTLBurden {
         AlleleFrequencies = AlleleFrequencies,
         ExpressionZscores = ExpressionZscores,
         aFC = aFCWeights,
-        AncestryAssignments = AncestryAssignments
+        AncestryAssignments = AncestryAssignments,
+        GTF = GTF,
+        eQTLSusie = eQTLSusie
     }
     output {
         File CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
         File QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
+        File QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
     }
 
 

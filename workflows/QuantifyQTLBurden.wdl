@@ -172,6 +172,8 @@ task CleanBurdenData {
         File ExpressionZscores 
         File aFC 
         File AncestryAssignments
+        File GTF 
+        File eQTLSusie
     }
     
     command <<<
@@ -179,6 +181,8 @@ task CleanBurdenData {
         --QTLBurden ~{MergedQTLBurden} \
         --AlleleFrequencies ~{AlleleFrequencies} \
         --ExpressionZscores ~{ExpressionZscores} \
+        --eQTLSusie ~{eQTLSusie} \
+        --GTF ~{GTF} \
         --aFC ~{aFC} \
         --AncestryAssignments ~{AncestryAssignments}
 
@@ -194,6 +198,8 @@ task CleanBurdenData {
     output {
         File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
+        File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv" 
+
     }
 }
 
@@ -208,6 +214,8 @@ workflow qtl_burden_workflow {
     File AncestryAssignments
     Int GenesPerShard = 500
     Boolean AnnotateBurden = true
+    File GTF 
+    File eQTLSusie
   }
 
   call shard_afc_by_gene {
@@ -239,7 +247,9 @@ workflow qtl_burden_workflow {
         AlleleFrequencies = AlleleFrequencies,
         ExpressionZscores = ExpressionZscores,
         aFC = aFCWeights,
-        AncestryAssignments = AncestryAssignments
+        AncestryAssignments = AncestryAssignments,
+        GTF = GTF,
+        eQTLSusie = eQTLSusie
     }
   }
 
@@ -251,5 +261,6 @@ workflow qtl_burden_workflow {
     ])
     File? CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
     File? QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
+    File? QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
   }
 }
