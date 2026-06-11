@@ -192,7 +192,7 @@ task CleanBurdenData {
     }
  
     output {
-        File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz",
+        File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
     }
 }

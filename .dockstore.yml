@@ -3,3 +3,6 @@ workflows:
   - subclass: WDL 
     primaryDescriptorPath: /workflows/QuantifyQTLBurden.wdl
     name: "QuantifyQTLBurden"
+  - subclass: WDL 
+    primaryDescriptorPath: /workflows/CleanQTLBurden.wdl
+    name: "CleanQTLBurdenTask"
