@@ -41,7 +41,6 @@ workflow CleanQTLBurden {
         File AncestryAssignments
         File AggregatedQTLBurden
     }
-    
     call CleanBurdenData {
       input:
         MergedQTLBurden = AggregatedQTLBurden,
