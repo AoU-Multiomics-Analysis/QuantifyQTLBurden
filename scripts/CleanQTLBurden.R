@@ -194,7 +194,7 @@ QTLBurdenFiltered <- QTLBurdenZscores %>%
     filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation)) %>% 
     filter(pid %in% KOPassList) %>% 
     mutate(gene_id = str_remove(pid,'\\..*')) %>% 
-    left_join(gene_types,by = 'gene_id')
+    left_join(GeneTypes,by = 'gene_id')
 
 # Count genes per individual within each percent-change bin
 # and summarize the range
