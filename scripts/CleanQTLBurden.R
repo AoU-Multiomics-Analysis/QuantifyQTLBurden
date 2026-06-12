@@ -189,7 +189,7 @@ GeneBurdenCounts %>% write_tsv('QTLGeneBurdenCounts.tsv.gz')
 
 ###### SUMMARIZE BURDEN GENES PER INDIVIDUAL ########
 message('Summarizing number genes per percent bin ')
-KOPassList <- GeneBurdenCounts %>% filter(NumKO < 100) %>% 
+KOPassList <- GeneBurdenCounts %>% filter(NumKO < 100) 
 QTLBurdenFiltered <- QTLBurdenZscores %>% 
     filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation)) %>% 
     filter(pid %in% KOPassList) %>% 
