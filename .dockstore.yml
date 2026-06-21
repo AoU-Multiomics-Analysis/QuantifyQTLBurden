@@ -1,5 +1,11 @@
 version: 1.2
 workflows:
+  - subclass: WDL
+    primaryDescriptorPath: /workflows/preprocess_AFC_inputs.wdl
+    name: "PreprocessAFCInputs"
+  - subclass: WDL
+    primaryDescriptorPath: /workflows/aFC.wdl
+    name: "aFC"
   - subclass: WDL 
     primaryDescriptorPath: /workflows/QuantifyQTLBurden.wdl
     name: "QuantifyQTLBurden"

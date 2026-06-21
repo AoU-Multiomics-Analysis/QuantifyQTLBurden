@@ -1,12 +1,42 @@
 # QuantifyQTLBurden
 
-QuantifyQTLBurden is a WDL/R pipeline for estimating individual-level QTL burden from fine-mapped QTL effect sizes and genotypes. The pipeline takes causal QTL variants with allelic fold-change effects, combines those effects with individual genotype dosages, and produces predicted shifts in gene expression for each individual and gene.
+QuantifyQTLBurden is a WDL/R pipeline for estimating individual-level QTL burden from fine-mapped QTL effect sizes and genotypes. The repository also includes independent WDL workflows for computing allelic fold change (aFC), because aFC estimation is the upstream step that produces the effect-size weights used by QTL burden quantification.
+
+The workflows remain separate:
+
+1. Run the aFC workflows when starting from QTL mapping results, genotypes, expression BED files, and covariates.
+2. Run the QuantifyQTLBurden workflows when starting from aFC weights and genotypes.
 
 The expected use case is a set of fine-mapped QTL variants, usually filtered to high-confidence causal variants such as `PIP > 0.9`, where each variant has a `log2_aFC` effect size. For each gene, the pipeline computes the aggregate predicted expression effect carried by each individual. Optional annotation steps compare those predicted effects to observed expression z scores, ancestry-specific allele frequencies, gene annotations, and coding-variant annotations.
 
 ## Pipeline Overview
 
-The main workflow is [`workflows/QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl). It is designed to run on Terra/Cromwell and has four major stages:
+This repository has two independent pipeline groups.
+
+### aFC Pipeline
+
+The upstream aFC workflows were merged from <https://github.com/AoU-Multiomics-Analysis/aFC> and are based on the aFC tool described at <https://github.com/secastel/aFC>.
+
+The preprocessing workflow, [`workflows/preprocess_AFC_inputs.wdl`](workflows/preprocess_AFC_inputs.wdl), prepares genotype and expression inputs so they meet aFC requirements:
+
+- `preprocess_expression_bed`: re-compresses the expression BED with `bgzip` and creates a tabix index.
+- `annotate_vcf_ids`: annotates VCF variant IDs in `CHROM:POS_REF_ALT` format so they match the `sid` field used in QTL files.
+
+The aFC workflow, [`workflows/aFC.wdl`](workflows/aFC.wdl), runs aFC by chromosome and then merges per-chromosome reports:
+
+- `split_vcf_by_chr`: subsets and indexes the VCF for one chromosome.
+- `run_afc`: runs `/opt/aFC/aFC.py` on the chromosome-specific VCF, expression BED, covariates, and QTL file.
+- `merge_afc_reports`: concatenates chromosome-level aFC outputs into one gzipped report.
+
+Recommended aFC execution order:
+
+1. Prepare a QTL file with at least `pid`, `sid`, `sid_chr`, and `sid_pos`, where `sid` uses `CHROM:POS_REF_ALT`.
+2. Run [`workflows/preprocess_AFC_inputs.wdl`](workflows/preprocess_AFC_inputs.wdl) unless the VCF and expression BED are already correctly formatted and indexed.
+3. Run [`workflows/aFC.wdl`](workflows/aFC.wdl) to produce `<prefix>.aFC.txt.gz`.
+
+### QTL Burden Pipeline
+
+The main burden workflow is [`workflows/QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl). It is designed to run on Terra/Cromwell and has four major stages:
 
 1. **Shard aFC weights by gene**
    - Splits the aFC input table into smaller gene-based shards.
@@ -51,6 +81,37 @@ PercentChangeCenteredEffectPopulation = (2^CenteredEffectPopulation - 1) * 100
 These centered values estimate whether an individual's predicted genetically driven expression shift is unusually high or low relative to their assigned ancestry group.
 
 ## Inputs
+
+### aFC Workflow Inputs
+
+[`workflows/preprocess_AFC_inputs.wdl`](workflows/preprocess_AFC_inputs.wdl):
+
+| Input | Type | Description |
+| --- | --- | --- |
+| `vcf_file` | File | Input genotype VCF. |
+| `expression_bed` | File | Expression BED file. |
+| `prefix` | String | Output file prefix. |
+| `memory` | Int | Memory in GB. Default: `16`. |
+| `disk_space` | Int | Extra disk space in GB. Default: `50`. |
+| `num_threads` | Int | Number of CPU threads. Default: `8`. |
+| `num_preempt` | Int | Number of preemptible retries. Default: `0`. |
+
+[`workflows/aFC.wdl`](workflows/aFC.wdl):
+
+| Input | Type | Description |
+| --- | --- | --- |
+| `vcf_file` | File | Annotated, indexed genotype VCF. |
+| `vcf_index` | File | Tabix index for `vcf_file`. |
+| `expression_bed` | File | bgzip-compressed, tabix-indexed expression BED. |
+| `expression_bed_index` | File | Tabix index for `expression_bed`. |
+| `covariates_file` | File | Covariates file in the format expected by aFC. |
+| `afc_qtl_file` | File | QTL file containing at least `pid`, `sid`, `sid_chr`, and `sid_pos`. |
+| `prefix` | String | Output file prefix. |
+| `chromosomes` | Array[String]? | Optional chromosome list. Defaults to `chr1`-`chr22`, `chrX`, and `chrY`. |
+| `memory` | Int | Memory in GB. Default: `16`. |
+| `disk_space` | Int | Extra disk space in GB. Default: `50`. |
+| `num_threads` | Int | Number of CPU threads. Default: `8`. |
+| `num_preempt` | Int | Number of preemptible retries. Default: `0`. |
 
 ### Main Workflow Inputs
 
@@ -100,6 +161,24 @@ These are converted to alternate allele dosages of 0, 1, or 2.
 | `eQTLSusie` | `molecular_trait_id`, `pip`, and either `consequence` or boolean `frameshift` / `stop_gained` columns. |
 
 ## Outputs
+
+### aFC Outputs
+
+[`workflows/preprocess_AFC_inputs.wdl`](workflows/preprocess_AFC_inputs.wdl) emits:
+
+| Output | Description |
+| --- | --- |
+| `processed_expression_bed` | bgzip-compressed expression BED: `<prefix>.processed_expression.bed.gz`. |
+| `processed_expression_bed_tbi` | Tabix index for the processed expression BED. |
+| `annotated_vcf` | VCF with variant IDs annotated as `CHROM:POS_REF_ALT`: `<prefix>.annotated.vcf.gz`. |
+| `annotated_vcf_tbi` | Tabix index for the annotated VCF. |
+
+[`workflows/aFC.wdl`](workflows/aFC.wdl) emits:
+
+| Output | Description |
+| --- | --- |
+| `per_chr_afc_reports` | Per-chromosome aFC reports: `<prefix>.<chr>.aFC.txt.gz`. |
+| `final_afc_report` | Merged aFC report across chromosomes: `<prefix>.aFC.txt.gz`. |
 
 ### Main Burden Output
 
@@ -175,6 +254,33 @@ Main steps:
 
 ## Workflows
 
+### `workflows/preprocess_AFC_inputs.wdl`
+
+Preprocessing-only workflow for aFC input preparation.
+
+Workflow:
+
+- `preprocess_workflow_parallel`
+
+Tasks:
+
+- `preprocess_expression_bed`
+- `annotate_vcf_ids`
+
+### `workflows/aFC.wdl`
+
+Runs aFC per chromosome and merges the results.
+
+Workflow:
+
+- `aFC_workflow_split_by_chr`
+
+Tasks:
+
+- `split_vcf_by_chr`
+- `run_afc`
+- `merge_afc_reports`
+
 ### `workflows/QuantifyQTLBurden.wdl`
 
 End-to-end workflow. Use this when starting from aFC weights and a VCF.
@@ -200,12 +306,14 @@ Dockerfiles are provided under `envs/`:
 
 | Dockerfile | Purpose |
 | --- | --- |
+| `envs/aFC/Dockerfile` | Runtime reference for aFC preprocessing and aFC calculation. |
 | `envs/QuantifyQTLBurden/Dockerfile` | Runtime for raw burden calculation. |
 | `envs/CleanQTLBurden/Dockerfile` | Runtime for annotation and summary generation. |
 
 The WDLs currently reference GitHub Container Registry images:
 
 ```text
+gcr.io/broad-cga-francois-gtex/gtex_eqtl:V8
 ghcr.io/aou-multiomics-analysis/quantifyqtlburden/quantifyqtlburden:main
 ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main
 ```
@@ -223,12 +331,15 @@ ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main
 ```text
 .
 ├── workflows/
+│   ├── preprocess_AFC_inputs.wdl
+│   ├── aFC.wdl
 │   ├── QuantifyQTLBurden.wdl
 │   └── CleanQTLBurden.wdl
 ├── scripts/
 │   ├── QTLBurden.R
 │   └── CleanQTLBurden.R
 ├── envs/
+│   ├── aFC/Dockerfile
 │   ├── QuantifyQTLBurden/Dockerfile
 │   └── CleanQTLBurden/Dockerfile
 ├── .dockstore.yml
