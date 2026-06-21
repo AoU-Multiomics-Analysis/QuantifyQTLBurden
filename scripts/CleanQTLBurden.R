@@ -3,6 +3,20 @@ library(data.table)
 library(optparse)
 library(rtracklayer)
 
+safe_max <- function(x) {
+  if (all(is.na(x))) {
+    return(NA_real_)
+  }
+  max(x, na.rm = TRUE)
+}
+
+safe_max_abs <- function(x) {
+  if (all(is.na(x))) {
+    return(NA_real_)
+  }
+  max(abs(x), na.rm = TRUE)
+}
+
 ####### PARSE ARGUMENTS #########
 option_list <- list(
     optparse::make_option(c("--QTLBurden"), type = "character", default = NULL,
@@ -152,6 +166,53 @@ QTLBurdenZscores <- QTLBurdenMerge %>%
 
 QTLBurdenZscores %>% write_tsv('QTLBurdenSummary.cleaned.tsv.gz')
 
+message('Creating gene QC table')
+aFCGeneQC <- aFC %>%
+  group_by(pid) %>%
+  summarise(
+    n_afc_variants = n_distinct(sid),
+    n_positive_effect_variants = sum(log2_aFC > 0, na.rm = TRUE),
+    n_negative_effect_variants = sum(log2_aFC < 0, na.rm = TRUE),
+    n_zero_effect_variants = sum(log2_aFC == 0, na.rm = TRUE),
+    max_abs_log2_aFC = safe_max_abs(log2_aFC),
+    mean_abs_log2_aFC = mean(abs(log2_aFC), na.rm = TRUE),
+    total_abs_log2_aFC = sum(abs(log2_aFC), na.rm = TRUE),
+    dominant_variant_fraction_effect = if_else(
+      total_abs_log2_aFC > 0,
+      max_abs_log2_aFC / total_abs_log2_aFC,
+      NA_real_
+    ),
+    .groups = "drop"
+  )
+
+QTLGeneBurdenQC <- QTLBurdenZscores %>%
+  group_by(pid, gene_id, gene_name, gene_type, CausalCodingVariantPresent) %>%
+  summarise(
+    n_samples = n_distinct(sample),
+    n_samples_nonzero_burden = n_distinct(sample[!is.na(predicted_effect) & predicted_effect != 0]),
+    fraction_samples_nonzero_burden = n_samples_nonzero_burden / n_samples,
+    n_samples_with_missing_genotype = n_distinct(sample[has_missing_genotype %in% TRUE]),
+    fraction_samples_with_missing_genotype = n_samples_with_missing_genotype / n_samples,
+    max_missing_genotypes = safe_max(n_missing_genotypes),
+    mean_missing_genotypes = mean(n_missing_genotypes, na.rm = TRUE),
+    max_abs_predicted_effect = safe_max_abs(predicted_effect),
+    mean_abs_predicted_effect = mean(abs(predicted_effect), na.rm = TRUE),
+    median_abs_predicted_effect = median(abs(predicted_effect), na.rm = TRUE),
+    max_abs_centered_effect = safe_max_abs(CenteredEffectPopulation),
+    mean_abs_centered_effect = mean(abs(CenteredEffectPopulation), na.rm = TRUE),
+    median_abs_centered_effect = median(abs(CenteredEffectPopulation), na.rm = TRUE),
+    max_abs_centered_z_population = safe_max_abs(CenteredEffectZPopulation),
+    median_abs_centered_z_population = median(abs(CenteredEffectZPopulation), na.rm = TRUE),
+    max_abs_observed_z = safe_max_abs(ObservedZ),
+    median_abs_observed_z = median(abs(ObservedZ), na.rm = TRUE),
+    n_up_expression_outliers = sum(UpOutlier, na.rm = TRUE),
+    n_down_expression_outliers = sum(DownOutlier, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  left_join(aFCGeneQC, by = "pid")
+
+QTLGeneBurdenQC %>% write_tsv('QTLGeneBurdenQC.tsv.gz')
+
 
 
 ######  GET  BURDEN COUNTS  #########
@@ -201,7 +262,8 @@ QTLBurdenFiltered <- QTLBurdenZscores %>%
         gene_id = str_remove(pid, '\\..*')
     ) %>%
     select(-any_of(c("gene_type", "gene_name"))) %>%
-    left_join(GeneTypes, by = 'gene_id')# Count genes per individual within each percent-change bin
+    left_join(GeneTypes, by = 'gene_id')
+
 # and summarize the range
 MedianGenesPerIndividual <- QTLBurdenFiltered %>%
     group_by(individual_id, PercentChangeBin,gene_type) %>%
