@@ -133,6 +133,7 @@ When `AnnotateBurden = true`, the workflow also emits:
 | --- | --- |
 | `QTLBurdenSummary.cleaned.tsv.gz` | Annotated burden table with ancestry, gene metadata, observed expression z scores, expected population shifts, centered z scores, percent-change estimates, and percent-change bins. |
 | `QTLGeneBurdenCounts.tsv.gz` | Gene-level summary of large predicted burden events, including deletion-like and duplication-like burden counts and expression-supported events. |
+| `QTLGeneBurdenQC.tsv.gz` | Gene-level QC table summarizing variant counts, effect-size distributions, missing genotype rates, nonzero burden frequency, burden magnitude, centered z-score magnitude, and observed expression outlier counts. |
 | `QTLBurdenMedianGenesPerBin.tsv` | Median number of genes per individual in each percent-change bin, stratified by gene type and coding-variant filtering status. |
 | `QTLBurdenOutlierEnrichment.tsv` | Enrichment of observed expression outliers across burden percent-change bins, currently focused on protein-coding genes. |
 
@@ -233,5 +234,3 @@ ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main
 ├── .dockstore.yml
 └── README.md
 ```
-
-

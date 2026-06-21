@@ -1,5 +1,7 @@
 version 1.0 
 
+import "CleanQTLBurden.wdl" as clean
+
 task shard_afc_by_gene {
   input {
     File afc_tsv
@@ -165,44 +167,6 @@ task AggregateQTLBurden {
 
 
 
-task CleanBurdenData {
-    input {
-        File MergedQTLBurden
-        File AlleleFrequencies
-        File ExpressionZscores 
-        File aFC 
-        File AncestryAssignments
-        File GTF 
-        File eQTLSusie
-    }
-    
-    command <<<
-    Rscript /tmp/CleanQTLBurden.R \
-        --QTLBurden ~{MergedQTLBurden} \
-        --AlleleFrequencies ~{AlleleFrequencies} \
-        --ExpressionZscores ~{ExpressionZscores} \
-        --eQTLSusie ~{eQTLSusie} \
-        --GTF ~{GTF} \
-        --aFC ~{aFC} \
-        --AncestryAssignments ~{AncestryAssignments}
-
-    >>>
-
-    runtime {
-        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
-        memory: "256G"
-        cpu: 2
-        disks: "local-disk 2500 SSD"
-    }
- 
-    output {
-        File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
-        File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
-        File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv" 
-        File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
-    }
-}
-
 workflow qtl_burden_workflow {
 
   input {
@@ -241,12 +205,12 @@ workflow qtl_burden_workflow {
   }
 
   if (AnnotateBurden) {
-    call CleanBurdenData {
+    call clean.CleanQTLBurden as CleanBurdenData {
       input:
         MergedQTLBurden = AggregateQTLBurden.QTLBurdenSummary,
         AlleleFrequencies = AlleleFrequencies,
         ExpressionZscores = ExpressionZscores,
-        aFC = aFCWeights,
+        aFCWeights = aFCWeights,
         AncestryAssignments = AncestryAssignments,
         GTF = GTF,
         eQTLSusie = eQTLSusie
@@ -256,11 +220,12 @@ workflow qtl_burden_workflow {
   output {
     File AggregatedBurden = AggregateQTLBurden.QTLBurdenSummary
     File FinalBurden = select_first([
-      CleanBurdenData.QTLBurdenSummaryCleaned,
+      CleanBurdenData.CleanedBurden,
       AggregateQTLBurden.QTLBurdenSummary
     ])
-    File? CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
+    File? CleanedBurden = CleanBurdenData.CleanedBurden
     File? QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
+    File? QTLGeneBurdenQC = CleanBurdenData.QTLGeneBurdenQC
     File? QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
     File? QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
 
