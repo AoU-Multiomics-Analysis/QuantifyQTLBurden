@@ -189,14 +189,19 @@ GeneBurdenCounts %>% write_tsv('QTLGeneBurdenCounts.tsv.gz')
 
 ###### SUMMARIZE BURDEN GENES PER INDIVIDUAL ########
 message('Summarizing number genes per percent bin ')
-KOPassList <- GeneBurdenCounts %>% filter(NumKO < 100) 
-QTLBurdenFiltered <- QTLBurdenZscores %>% 
-    filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation)) %>% 
-    filter(pid %in% KOPassList) %>% 
-    mutate(gene_id = str_remove(pid,'\\..*')) %>% 
-    left_join(GeneTypes,by = 'gene_id')
+KOPassList <- GeneBurdenCounts %>%
+    filter(NumKO < 100) %>%
+    pull(pid)
 
-# Count genes per individual within each percent-change bin
+QTLBurdenFiltered <- QTLBurdenZscores %>%
+    filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation)) %>%
+    filter(pid %in% KOPassList) %>%
+    mutate(
+        individual_id = sample,
+        gene_id = str_remove(pid, '\\..*')
+    ) %>%
+    select(-any_of(c("gene_type", "gene_name"))) %>%
+    left_join(GeneTypes, by = 'gene_id')# Count genes per individual within each percent-change bin
 # and summarize the range
 MedianGenesPerIndividual <- QTLBurdenFiltered %>%
     group_by(individual_id, PercentChangeBin,gene_type) %>%
@@ -357,4 +362,4 @@ OutlierEnrichmentsRefBin <- bind_rows(results_down_ref_bin_comparison,
                                      ) %>% 
                             filter(focal_lower_bound != -10)
 
-OutlierEnrichments %>% write_tsv('QTLBurdenOutlierEnrichment.tsv')
+OutlierEnrichmentsRefBin %>% write_tsv('QTLBurdenOutlierEnrichment.tsv')
