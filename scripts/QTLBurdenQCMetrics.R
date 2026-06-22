@@ -17,6 +17,40 @@ get_script_dir <- function() {
 SCRIPT_DIR <- get_script_dir()
 source(file.path(SCRIPT_DIR, "qtl_burden_functions", "math_utils.R"))
 
+extract_cli_numeric_arg <- function(arg_name, args, default_value = NULL) {
+  long_form <- paste0("--", arg_name)
+  eq_form <- paste0("^", long_form, "=")
+  idx <- which(args == long_form)
+  if (length(idx) == 1) {
+    if (idx < length(args) && !startsWith(args[idx + 1], "--")) {
+      return(list(
+        value = suppressWarnings(as.numeric(args[idx + 1])),
+        args = args[-c(idx, idx + 1)]
+      ))
+    }
+    stop(sprintf("Missing value for %s", long_form))
+  }
+
+  idx_eq <- which(grepl(eq_form, args))
+  if (length(idx_eq) == 1) {
+    split_val <- sub(sprintf("^%s=", fixed = TRUE), "", args[idx_eq])
+    return(list(
+      value = suppressWarnings(as.numeric(split_val)),
+      args = args[-idx_eq]
+    ))
+  }
+
+  list(value = default_value, args = args)
+}
+
+raw_cli_args <- commandArgs(trailingOnly = TRUE)
+tail_z_warn_sample_proportion_arg <- extract_cli_numeric_arg(
+  "TailZWarnSampleProportionThreshold",
+  raw_cli_args,
+  default_value = NULL
+)
+clean_cli_args <- tail_z_warn_sample_proportion_arg$args
+
 option_list <- list(
   optparse::make_option(c("--CleanedQTLBurden"), type = "character", default = NULL,
                         help = "QC-ready cleaned burden file"),
@@ -46,7 +80,16 @@ option_list <- list(
                         help = "Warn when a single variant explains more than this fraction of abs burden")
 )
 
-opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
+parser <- optparse::OptionParser(option_list = option_list)
+opt <- tryCatch(
+  {
+    optparse::parse_args(parser, args = clean_cli_args)
+  },
+  error = function(e) {
+    message("Argument parsing failed after stripping compatibility options: ", conditionMessage(e))
+    stop(e)
+  }
+)
 
 if (is.null(opt$CleanedQTLBurden) || is.null(opt$aFC)) {
   stop("--CleanedQTLBurden and --aFC are required")
@@ -61,7 +104,15 @@ VarianceRatioWarnLower <- opt$VarianceRatioWarnLower
 VarianceRatioWarnUpper <- opt$VarianceRatioWarnUpper
 TailZFailThreshold <- opt$TailZFailThreshold
 TailZWarnThreshold <- opt$TailZWarnThreshold
-TailZWarnSampleProportionThreshold <- opt$TailZWarnSampleProportionThreshold
+TailZWarnSampleProportionThreshold <- if (is.null(tail_z_warn_sample_proportion_arg$value)) {
+  if (is.null(opt$TailZWarnSampleProportionThreshold)) {
+    0.05
+  } else {
+    opt$TailZWarnSampleProportionThreshold
+  }
+} else {
+  tail_z_warn_sample_proportion_arg$value
+}
 DominantVariantWarnThreshold <- opt$DominantVariantWarnThreshold
 
 message('Loading cleaned burden')

@@ -44,15 +44,34 @@ compute_median_genes_per_bin <- function(df, remove_pids = character(0), remove_
     )
 }
 
-# genes requiring high-variant-dominance QC are used for both model summaries
-DominantVariantWarnGenes <- aFCGeneQC %>%
-  filter(
-    !is.na(dominant_variant_fraction_effect),
-    dominant_variant_fraction_effect >= DominantVariantWarnThreshold
-  ) %>%
-  pull(pid)
+write_median_gene_summaries <- function(
+  df,
+  model_label,
+  output_suffix = NULL,
+  write_legacy_outputs = FALSE,
+  coding_variant_genes = NULL,
+  dominant_variant_warn_genes = NULL
+) {
+  coding_variant_genes <- if (is.null(coding_variant_genes)) {
+    if (exists("CodingVariantGenes", inherits = TRUE)) {
+      CodingVariantGenes
+    } else {
+      character(0)
+    }
+  } else {
+    coding_variant_genes
+  }
 
-write_median_gene_summaries <- function(df, model_label, output_suffix = NULL, write_legacy_outputs = FALSE) {
+  dominant_variant_warn_genes <- if (is.null(dominant_variant_warn_genes)) {
+    if (exists("DominantVariantWarnGenes", inherits = TRUE)) {
+      DominantVariantWarnGenes
+    } else {
+      character(0)
+    }
+  } else {
+    dominant_variant_warn_genes
+  }
+
   has_suffix <- !is.null(output_suffix) && nchar(output_suffix) > 0
   base_prefix <- if (has_suffix) {
     paste0("QTLBurdenMedianGenesPerBin_", output_suffix)
@@ -81,28 +100,28 @@ write_median_gene_summaries <- function(df, model_label, output_suffix = NULL, w
 
   coding_removed <- compute_median_genes_per_bin(
     df = df,
-    remove_pids = CodingVariantGenes,
+    remove_pids = coding_variant_genes,
     remove_noisy_dosage_extremes = FALSE,
     gene_category = "CausalCodingVariantGenesRemoved"
   )
 
   coding_removed_noisy <- compute_median_genes_per_bin(
     df = df,
-    remove_pids = CodingVariantGenes,
+    remove_pids = coding_variant_genes,
     remove_noisy_dosage_extremes = TRUE,
     gene_category = "CausalCodingVariantGenesRemoved"
   )
 
   dominant_removed <- compute_median_genes_per_bin(
     df = df,
-    remove_pids = DominantVariantWarnGenes,
+    remove_pids = dominant_variant_warn_genes,
     remove_noisy_dosage_extremes = FALSE,
     gene_category = "DominantVariantGenesRemoved"
   )
 
   dominant_removed_noisy <- compute_median_genes_per_bin(
     df = df,
-    remove_pids = DominantVariantWarnGenes,
+    remove_pids = dominant_variant_warn_genes,
     remove_noisy_dosage_extremes = TRUE,
     gene_category = "DominantVariantGenesRemoved"
   )

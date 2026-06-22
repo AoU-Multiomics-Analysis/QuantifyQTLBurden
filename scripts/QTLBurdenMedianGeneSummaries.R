@@ -96,23 +96,25 @@ CodingVariantGenes <- QTLBurdenFiltered_AllCalls %>%
   distinct(pid) %>%
   pull(pid)
 
-# Required by write_median_gene_summaries() implementation.
-assign("CodingVariantGenes", CodingVariantGenes, envir = .GlobalEnv)
-assign("DominantVariantWarnGenes", DominantVariantWarnGenes, envir = .GlobalEnv)
-
 write_median_gene_summaries(
   df = QTLBurdenFiltered_AllCalls,
   model_label = "AllCalls",
-  output_suffix = "AllCalls"
+  output_suffix = "AllCalls",
+  coding_variant_genes = CodingVariantGenes,
+  dominant_variant_warn_genes = DominantVariantWarnGenes
 )
 write_median_gene_summaries(
   df = QTLBurdenFiltered_HighConfidence,
   model_label = "HighConfidence",
-  output_suffix = "HighConfidence"
+  output_suffix = "HighConfidence",
+  coding_variant_genes = CodingVariantGenes,
+  dominant_variant_warn_genes = DominantVariantWarnGenes
 )
 write_median_gene_summaries(
   df = QTLBurdenFiltered_HighKORemoved,
   model_label = "HighKORemoved",
   output_suffix = "HighKORemoved",
+  coding_variant_genes = CodingVariantGenes,
+  dominant_variant_warn_genes = DominantVariantWarnGenes,
   write_legacy_outputs = TRUE
 )
