@@ -29,7 +29,7 @@ The workflows stay separate:
 
 - [aFC workflows](docs/aFC.md)
 - [QTL burden workflows](docs/qtl-burden.md)
-- [Burden posterior probabilities](docs/burden-probability.md)
+- [Burden tail probabilities](docs/burden-probability.md)
 - [Runtime, Terra, and repository layout](docs/runtime-and-layout.md)
 
 ## Scientific Summary

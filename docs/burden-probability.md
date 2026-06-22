@@ -1,6 +1,6 @@
-# Burden posterior probability model
+# Burden tail-probability model
 
-This document gives the exact computation used by [`scripts/QTLBurden.R`](../scripts/QTLBurden.R) to produce the burden posterior columns.
+This document gives the exact computation used by [`scripts/QTLBurden.R`](../scripts/QTLBurden.R) to produce the burden tail-probability columns.
 
 ## Per-individual, per-gene model
 
@@ -8,7 +8,7 @@ For one gene and one individual:
 
 - Let `β_i` be the aFC effect (log2 scale) for variant `i`.
 - Let `SE_i` be its standard error.
-- Let `d_i` be genotype dosage (`0`, `1`, `2`; missing values are treated as `0` for the burden score and posterior computations).
+- Let `d_i` be genotype dosage (`0`, `1`, `2`; missing values are treated as `0` for the burden score and tail-probability calculations).
 
 The model computes:
 
@@ -59,7 +59,7 @@ P(gain) = P(L >= gain_threshold)
 
 where `Φ` is the standard normal CDF.
 
-If `σ_L` is effectively zero, the code returns a hard 0/1 tail call:
+If `σ_L` is effectively zero, the code returns a hard 0/1 tail score:
 
 - `P(loss) = I(μ_L <= loss_threshold)`
 - `P(gain) = I(μ_L >= gain_threshold)`
@@ -71,18 +71,18 @@ From one burden run, for each row (sample, gene):
 - `burden_probability_loss50` is `P(loss)`.
 - `burden_probability_gain50` is `P(gain)`.
 - `burden_probability` is direction-specific:
-  - if `BurdenDirection = loss` / `deletion`, it equals `P(loss)`
-  - if `BurdenDirection = gain` / `duplication`, it equals `P(gain)`
-  - if `BurdenDirection = both`, it is currently set to the loss tail (`P(loss)`)
+  - if `BurdenDirection = loss` / `deletion`, it equals the loss tail probability `P(loss)`
+  - if `BurdenDirection = gain` / `duplication`, it equals the gain tail probability `P(gain)`
+  - if `BurdenDirection = both`, it is currently set to the loss tail probability (`P(loss)`)
 
 In the cleaning step, quality flags and downstream weighted summaries use:
 
 - `is_noisy_extreme_call` with `BurdenTailProbability` cutoff.
-- `burden_tail_weight` for weighted medians (`P(loss)` for negative-extreme bins, `P(gain)` for positive-extreme bins, and `1` otherwise).
+- `burden_tail_weight` for weighted medians (loss-tail probability for negative-extreme bins, gain-tail probability for positive-extreme bins, and `1` otherwise).
 
 ## Interpretation
 
-These are analytic posterior tail probabilities under an approximate normal model, not empirical permutation frequencies or bootstrap estimates.
+These are analytic tail probabilities under an approximate normal model, not empirical permutation frequencies or bootstrap estimates.
 They describe the probability (given uncertainty in aFC), that total burden is at least as extreme as the configured threshold in the expected direction of regulation.
 
-`BurdenProbability` values can be interpreted as per-gene, per-sample confidence for extreme expression change, and are suitable for continuous/weighted summaries, flagging, or filtering.
+`BurdenProbability` values can be interpreted as tail-based confidence for extreme expression change, and are suitable for continuous/weighted summaries, flagging, or filtering.

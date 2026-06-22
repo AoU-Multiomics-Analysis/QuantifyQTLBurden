@@ -9,7 +9,7 @@ The primary burden statistic is:
 ```text
 predicted_effect = sum(genotype_dosage_variant * log2_aFC_variant)
 ```
-An optional analytic extreme-expression posterior is also reported:
+An optional analytic extreme-expression tail score is also reported:
 
 ```text
 L = sum(genotype_dosage_variant * beta_variant)
@@ -124,8 +124,8 @@ Important raw burden columns include:
 | `burden_mean` | Analytic mean total log2 burden for the active direction. |
 | `burden_sd` | Analytic SD of the active directional burden. |
 | `burden_probability` | Probabilistic extreme-expression score (one-sided tail), based on `LossThreshold`, `GainThreshold`, and `BurdenDirection` behavior. |
-| `burden_probability_loss50` | Loss posterior `P(L < LossThreshold)`. |
-| `burden_probability_gain50` | Gain posterior `P(L > GainThreshold)`. |
+| `burden_probability_loss50` | Loss tail probability `P(L < LossThreshold)`. |
+| `burden_probability_gain50` | Gain tail probability `P(L > GainThreshold)`. |
 | `n_contributing_variants` | Number of variants with nonzero contribution. |
 | `dominant_variant_fraction_abs` | Fraction of absolute burden explained by the largest contribution. |
 | `N_eff_abs` | Effective number of contributing variants based on absolute effects. |
