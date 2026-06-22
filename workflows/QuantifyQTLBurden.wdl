@@ -2,6 +2,7 @@ version 1.0
 
 import "QuantifyQTLBurdenCore.wdl" as core
 import "QTLBurdenQC.wdl" as qctools
+import "CleanQTLBurden.wdl" as clean
 
   workflow qtl_burden_workflow {
 
@@ -47,16 +48,24 @@ import "QTLBurdenQC.wdl" as qctools
   }
 
   if (AnnotateBurden) {
-    call qctools.QTLBurdenQC as QTLBurdenQC {
+    call clean.CleanBurdenData as CleanBurdenData {
       input:
         MergedQTLBurden = QuantifyCoreBurden.AggregatedQTLBurden,
         AlleleFrequencies = AlleleFrequencies,
         ExpressionZscores = ExpressionZscores,
-        aFCWeights = aFCWeights,
+        aFC = aFCWeights,
         AncestryAssignments = AncestryAssignments,
         eQTLSusie = eQTLSusie,
         GTF = GTF,
-        BurdenTailProbability = BurdenTailProbability,
+        BurdenTailProbability = BurdenTailProbability
+    }
+
+    call qctools.QTLBurdenQC as QTLBurdenQC {
+      input:
+        CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
+        aFCWeights = aFCWeights,
+        QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts,
+        QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene,
         OutlierPermutationIterations = OutlierPermutationIterations,
         MissingnessFailThreshold = MissingnessFailThreshold,
         MissingnessWarnThreshold = MissingnessWarnThreshold,

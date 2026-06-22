@@ -1,7 +1,5 @@
 version 1.0
 
-import "CleanQTLBurden.wdl" as clean
-
 task ComputeQTLBurdenQC {
   input {
     File CleanedQTLBurden
@@ -148,15 +146,9 @@ task PlotQTLBurdenQC {
 
 workflow QTLBurdenQC {
   input {
-    File MergedQTLBurden
-    File AlleleFrequencies
-    File ExpressionZscores
+    File CleanedQTLBurden
     File aFCWeights
-    File AncestryAssignments
-    File eQTLSusie
-    File GTF
     String QCPlotPrefix = "QTLGeneBurdenQC"
-    Float BurdenTailProbability = 0.9
     Int OutlierPermutationIterations = 200
     Float MissingnessFailThreshold = 0.10
     Float MissingnessWarnThreshold = 0.05
@@ -168,36 +160,26 @@ workflow QTLBurdenQC {
     Float TailZFailThreshold = 25
     Float TailZWarnThreshold = 15
     Float DominantVariantWarnThreshold = 0.98
+    File? QTLBurdenCounts
+    File? QTLBurdenPerSampleGene
   }
-
-    call clean.CleanBurdenData as CleanBurdenData {
-      input:
-        MergedQTLBurden = MergedQTLBurden,
-      AlleleFrequencies = AlleleFrequencies,
-      ExpressionZscores = ExpressionZscores,
-      aFC = aFCWeights,
-      AncestryAssignments = AncestryAssignments,
-        eQTLSusie = eQTLSusie,
-        GTF = GTF,
-        BurdenTailProbability = BurdenTailProbability
-    }
 
     call ComputeQTLBurdenOutlierEnrichment {
       input:
-        CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
+        CleanedQTLBurden = CleanedQTLBurden,
         OutlierPermutationIterations = OutlierPermutationIterations
     }
 
     call ComputeQTLBurdenMedianGenesPerBin {
       input:
-        CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
+        CleanedQTLBurden = CleanedQTLBurden,
         aFC = aFCWeights,
         DominantVariantWarnThreshold = DominantVariantWarnThreshold
     }
 
     call ComputeQTLBurdenQC {
       input:
-        CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
+        CleanedQTLBurden = CleanedQTLBurden,
         aFC = aFCWeights,
         MissingnessFailThreshold = MissingnessFailThreshold,
         MissingnessWarnThreshold = MissingnessWarnThreshold,
@@ -219,8 +201,8 @@ workflow QTLBurdenQC {
   }
 
   output {
-    File CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
-    File QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
+    File CleanedBurden = CleanedQTLBurden
+    File? QTLBurdenCounts = QTLBurdenCounts
     File QTLGeneBurdenQC = ComputeQTLBurdenQC.QTLGeneBurdenQC
     File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.QTLGeneBurdenStatusList
     File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichment
@@ -229,7 +211,7 @@ workflow QTLBurdenQC {
     File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
     File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
     File QTLBurdenOutlierEnrichmentPermutation = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichmentPermutation
-    File QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
+    File? QTLBurdenPerSampleGene = QTLBurdenPerSampleGene
     File QTLGeneBurdenQC_StatusByGeneType = PlotQTLBurdenQC.QTLGeneBurdenQC_StatusByGeneType
     File QTLGeneBurdenQC_StatusOverall = PlotQTLBurdenQC.QTLGeneBurdenQC_StatusOverall
     File QTLGeneBurdenQC_Missingness = PlotQTLBurdenQC.QTLGeneBurdenQC_Missingness
