@@ -59,6 +59,7 @@ Inputs:
 | `GainThreshold` | Float | Log2 cutoff for gain calls. Default: `0.5849625007` (+50%). |
 | `BurdenDirection` | String | `deletion`, `duplication`, or `both` (legacy aliases `loss`/`gain`). Default: `both`. |
 | `BurdenTailProbability` | Float | Tail-probability cutoff used to flag low-confidence extreme calls (`is_noisy_extreme_call`) in outputs. Default: `0.9`. |
+| `OutlierPermutationIterations` | Int | Number of permutations for outlier enrichment benchmarking (applies to the cleaning/annotation step). Default: `200`. |
 | `VariantEffectSEColumn` | String | Optional column name for log2(aFC) standard error (or `auto`). |
 | `AlleleFrequencies` | File | Allele-frequency table for expected burden and variance. |
 | `ExpressionZscores` | File | Matrix of observed expression z scores. |
