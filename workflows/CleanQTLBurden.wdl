@@ -10,6 +10,7 @@ task CleanBurdenData {
         File eQTLSusie
         File GTF
         Float BurdenTailProbability = 0.9
+        Int OutlierPermutationIterations = 200
     }
     
     command <<<
@@ -21,7 +22,8 @@ task CleanBurdenData {
         --aFC ~{aFC} \
         --GTF ~{GTF} \
         --AncestryAssignments ~{AncestryAssignments} \
-        --BurdenTailProbability ~{BurdenTailProbability}
+        --BurdenTailProbability ~{BurdenTailProbability} \
+        --OutlierPermutationIterations ~{OutlierPermutationIterations}
 
     if [ -f /tmp/PlotQTLBurdenQC.R ]; then
       Rscript /tmp/PlotQTLBurdenQC.R \
@@ -82,6 +84,7 @@ workflow CleanQTLBurden {
         File eQTLSusie
         File GTF
         Float BurdenTailProbability = 0.9
+        Int OutlierPermutationIterations = 200
     }
     call CleanBurdenData {
       input:
@@ -92,7 +95,8 @@ workflow CleanQTLBurden {
         AncestryAssignments = AncestryAssignments,
         GTF = GTF,
         eQTLSusie = eQTLSusie,
-        BurdenTailProbability = BurdenTailProbability
+        BurdenTailProbability = BurdenTailProbability,
+        OutlierPermutationIterations = OutlierPermutationIterations
     }
     output {
         File CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned

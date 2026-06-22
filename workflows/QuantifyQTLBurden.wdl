@@ -193,6 +193,7 @@ workflow qtl_burden_workflow {
     String BurdenDirection = "both"
     String VariantEffectSEColumn = "auto"
     Float BurdenTailProbability = 0.9
+    Int OutlierPermutationIterations = 200
   }
 
   call shard_afc_by_gene {
@@ -231,7 +232,8 @@ workflow qtl_burden_workflow {
         AncestryAssignments = AncestryAssignments,
         GTF = GTF,
         eQTLSusie = eQTLSusie,
-        BurdenTailProbability = BurdenTailProbability
+        BurdenTailProbability = BurdenTailProbability,
+        OutlierPermutationIterations = OutlierPermutationIterations
     }
   }
 
