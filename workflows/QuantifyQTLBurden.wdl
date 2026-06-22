@@ -1,181 +1,9 @@
 version 1.0 
 
-import "CleanQTLBurden.wdl" as clean
+import "QuantifyQTLBurdenCore.wdl" as core
+import "QTLBurdenQC.wdl" as qctools
 
-task shard_afc_by_gene {
-  input {
-    File afc_tsv
-    String gene_column
-    Int genes_per_shard
-    String out_prefix
-  }
-
-    command <<<
-      python3 <<PY
-    import csv
-    import json
-    import os
-    import gzip
-
-    infile = "~{afc_tsv}"
-    gene_col = "~{gene_column}"
-    genes_per_shard = ~{genes_per_shard}
-    out_prefix = "~{out_prefix}"
-
-    os.makedirs("shards", exist_ok=True)
-
-    # Open plain TSV or TSV.GZ
-    if infile.endswith(".gz"):
-        fh = gzip.open(infile, "rt")
-    else:
-        fh = open(infile, "r")
-
-    # Read all rows so we can sort by gene ID
-    reader = csv.DictReader(fh, delimiter="\t")
-    header = reader.fieldnames
-    if header is None:
-        raise ValueError("Input file has no header")
-
-    if gene_col not in header:
-        raise ValueError(f"Gene column '{gene_col}' not found in header: {header}")
-
-    rows = list(reader)
-    fh.close()
-
-    # ABSOLUTELY CRITICAL: sort by gene ID before sharding
-    rows.sort(key=lambda x: x[gene_col])
-
-    shard_idx = 0
-    genes_in_current_shard = 0
-    current_gene = None
-    out = None
-    writer = None
-    shard_paths = []
-
-    def open_shard(idx):
-        path = f"shards/{out_prefix}.shard_{idx:04d}.tsv"
-        handle = open(path, "w", newline="")
-        w = csv.DictWriter(handle, fieldnames=header, delimiter="\t")
-        w.writeheader()
-        return path, handle, w
-
-    for row in rows:
-        gene = row[gene_col]
-
-        # First row overall
-        if writer is None:
-            shard_path, out, writer = open_shard(shard_idx)
-            shard_paths.append(shard_path)
-            current_gene = gene
-            genes_in_current_shard = 1
-
-        # New gene encountered
-        elif gene != current_gene:
-            current_gene = gene
-
-            # If current shard already has enough genes, start a new one
-            if genes_in_current_shard >= genes_per_shard:
-                out.close()
-                shard_idx += 1
-                shard_path, out, writer = open_shard(shard_idx)
-                shard_paths.append(shard_path)
-                genes_in_current_shard = 1
-            else:
-                genes_in_current_shard += 1
-
-        writer.writerow(row)
-
-    if out is not None:
-        out.close()
-
-    with open("shard_manifest.json", "w") as f:
-        json.dump(shard_paths, f)
-    PY
-    >>>  
-    output {
-      Array[File] shard_files = glob("shards/*.tsv")
-      File manifest = "shard_manifest.json"
-    }  
-    
-    runtime {
-        docker: "python:3.10"
-        memory: "64G"
-        cpu: 2
-        disks: "local-disk 2500 SSD"
-  }
-}
-
-
-task QuantifyQTLBurden {
-    input {
-        File aFCWeights
-        File VCF
-        File IndexVCF
-        Float LossThreshold = -0.5849625007
-        Float GainThreshold = 0.5849625007
-        String BurdenDirection = "both"
-        String VariantEffectSEColumn = "auto"
-    }
-
-    String shard_base = basename(aFCWeights, ".tsv")
-    command <<<
-    Rscript /tmp/QTLBurden.R \
-        --AllelicFoldChangeData ~{aFCWeights} \
-        --VariantEffectSEColumn ~{VariantEffectSEColumn} \
-        --LossThreshold ~{LossThreshold} \
-        --GainThreshold ~{GainThreshold} \
-        --BurdenDirection ~{BurdenDirection} \
-        --GenotypeData ~{VCF} \
-        --OutputPrefix ~{shard_base}
-    >>>
-    runtime {
-        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/quantifyqtlburden:main"
-        memory: "32G"
-        cpu: 2
-        disks: "local-disk 2500 SSD"
-    }
-    
-    output {
-        File ShardBurden = shard_base + ".QTLBurdenSummary.tsv.gz"
-    }
-}
-
-task AggregateQTLBurden {
-
-    input {
-        Array[File] shard_outputs
-    }
-
-    command <<<
-    set -euo pipefail
-
-    first=1
-
-    for f in ~{sep=' ' shard_outputs}; do
-        if [ $first -eq 1 ]; then
-            zcat "$f"
-            first=0
-        else
-            zcat "$f" | tail -n +2
-        fi
-    done | gzip > QTLBurdenSummary.AllGenes.tsv.gz
-    >>>
-    runtime {
-        docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/quantifyqtlburden:main"
-        memory: "32G"
-        cpu: 2
-        disks: "local-disk 2500 SSD"
-    }
-    
-
-    output {
-        File QTLBurdenSummary = "QTLBurdenSummary.AllGenes.tsv.gz"
-    }
-}
-
-
-
-workflow qtl_burden_workflow {
+  workflow qtl_burden_workflow {
 
   input {
     File aFCWeights
@@ -194,74 +22,81 @@ workflow qtl_burden_workflow {
     String VariantEffectSEColumn = "auto"
     Float BurdenTailProbability = 0.9
     Int OutlierPermutationIterations = 200
+    Float MissingnessFailThreshold = 0.10
+    Float MissingnessWarnThreshold = 0.05
+    Float ContextMissingnessFailThreshold = 0.05
+    Float VarianceRatioLower = 0.20
+    Float VarianceRatioUpper = 5
+    Float VarianceRatioWarnLower = 0.35
+    Float VarianceRatioWarnUpper = 3
+    Float TailZFailThreshold = 25
+    Float TailZWarnThreshold = 15
+    Float DominantVariantWarnThreshold = 0.98
   }
 
-  call shard_afc_by_gene {
+  call core.QuantifyQTLBurdenCore as QuantifyCoreBurden {
     input:
-      afc_tsv = aFCWeights,
-      gene_column = "pid",
-      genes_per_shard = GenesPerShard,
-      out_prefix = "afc"
-  }
-
-  scatter (shard in shard_afc_by_gene.shard_files) {
-    call QuantifyQTLBurden {
-      input:
-        aFCWeights = shard,
-        VCF = VCF,
-        IndexVCF = IndexVCF,
-        LossThreshold = LossThreshold,
-        GainThreshold = GainThreshold,
-        BurdenDirection = BurdenDirection,
-        VariantEffectSEColumn = VariantEffectSEColumn
-    }
-  }
-
-  call AggregateQTLBurden {
-    input:
-      shard_outputs = QuantifyQTLBurden.ShardBurden
+      aFCWeights = aFCWeights,
+      VCF = VCF,
+      IndexVCF = IndexVCF,
+      GenesPerShard = GenesPerShard,
+      LossThreshold = LossThreshold,
+      GainThreshold = GainThreshold,
+      BurdenDirection = BurdenDirection,
+      VariantEffectSEColumn = VariantEffectSEColumn
   }
 
   if (AnnotateBurden) {
-    call clean.CleanQTLBurden as CleanBurdenData {
+    call qctools.QTLBurdenQC as QTLBurdenQC {
       input:
-        MergedQTLBurden = AggregateQTLBurden.QTLBurdenSummary,
+        MergedQTLBurden = QuantifyCoreBurden.AggregatedQTLBurden,
         AlleleFrequencies = AlleleFrequencies,
         ExpressionZscores = ExpressionZscores,
         aFCWeights = aFCWeights,
         AncestryAssignments = AncestryAssignments,
-        GTF = GTF,
         eQTLSusie = eQTLSusie,
+        GTF = GTF,
         BurdenTailProbability = BurdenTailProbability,
-        OutlierPermutationIterations = OutlierPermutationIterations
+        OutlierPermutationIterations = OutlierPermutationIterations,
+        MissingnessFailThreshold = MissingnessFailThreshold,
+        MissingnessWarnThreshold = MissingnessWarnThreshold,
+        ContextMissingnessFailThreshold = ContextMissingnessFailThreshold,
+        VarianceRatioLower = VarianceRatioLower,
+        VarianceRatioUpper = VarianceRatioUpper,
+        VarianceRatioWarnLower = VarianceRatioWarnLower,
+        VarianceRatioWarnUpper = VarianceRatioWarnUpper,
+        TailZFailThreshold = TailZFailThreshold,
+        TailZWarnThreshold = TailZWarnThreshold,
+        DominantVariantWarnThreshold = DominantVariantWarnThreshold,
+        QCPlotPrefix = "QTLGeneBurdenQC"
     }
   }
 
   output {
-    File AggregatedBurden = AggregateQTLBurden.QTLBurdenSummary
+    File AggregatedBurden = QuantifyCoreBurden.AggregatedQTLBurden
     File FinalBurden = select_first([
-      CleanBurdenData.CleanedBurden,
-      AggregateQTLBurden.QTLBurdenSummary
+      QTLBurdenQC.CleanedBurden,
+      QuantifyCoreBurden.AggregatedQTLBurden
     ])
-    File? CleanedBurden = CleanBurdenData.CleanedBurden
-    File? QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
-    File? QTLGeneBurdenQC = CleanBurdenData.QTLGeneBurdenQC
-    File? QTLGeneBurdenStatusList = CleanBurdenData.QTLGeneBurdenStatusList
-    File? QTLGeneBurdenQC_StatusByGeneType = CleanBurdenData.QTLGeneBurdenQC_StatusByGeneType
-    File? QTLGeneBurdenQC_StatusOverall = CleanBurdenData.QTLGeneBurdenQC_StatusOverall
-    File? QTLGeneBurdenQC_Missingness = CleanBurdenData.QTLGeneBurdenQC_Missingness
-    File? QTLGeneBurdenQC_VarianceRatio = CleanBurdenData.QTLGeneBurdenQC_VarianceRatio
-    File? QTLGeneBurdenQC_TailZ = CleanBurdenData.QTLGeneBurdenQC_TailZ
-    File? QTLGeneBurdenQC_DominantVariantFraction = CleanBurdenData.QTLGeneBurdenQC_DominantVariantFraction
-    File? QTLGeneBurdenQC_ReasonCounts = CleanBurdenData.QTLGeneBurdenQC_ReasonCounts
-    File? QTLGeneBurdenQC_GeneSetMedianImpact = CleanBurdenData.QTLGeneBurdenQC_GeneSetMedianImpact
-    File? QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
-    File? QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
-    File? QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet
-    File? QTLBurdenMedianGenesPerBinDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
-    File? QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
-    File? QTLBurdenOutlierEnrichmentPermutation = CleanBurdenData.QTLBurdenOutlierEnrichmentPermutation
-    File? QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
+    File? CleanedBurden = QTLBurdenQC.CleanedBurden
+    File? QTLBurdenCounts = QTLBurdenQC.QTLBurdenCounts
+    File? QTLGeneBurdenQC = QTLBurdenQC.QTLGeneBurdenQC
+    File? QTLGeneBurdenStatusList = QTLBurdenQC.QTLGeneBurdenStatusList
+    File? QTLGeneBurdenQC_StatusByGeneType = QTLBurdenQC.QTLGeneBurdenQC_StatusByGeneType
+    File? QTLGeneBurdenQC_StatusOverall = QTLBurdenQC.QTLGeneBurdenQC_StatusOverall
+    File? QTLGeneBurdenQC_Missingness = QTLBurdenQC.QTLGeneBurdenQC_Missingness
+    File? QTLGeneBurdenQC_VarianceRatio = QTLBurdenQC.QTLGeneBurdenQC_VarianceRatio
+    File? QTLGeneBurdenQC_TailZ = QTLBurdenQC.QTLGeneBurdenQC_TailZ
+    File? QTLGeneBurdenQC_DominantVariantFraction = QTLBurdenQC.QTLGeneBurdenQC_DominantVariantFraction
+    File? QTLGeneBurdenQC_ReasonCounts = QTLBurdenQC.QTLGeneBurdenQC_ReasonCounts
+    File? QTLGeneBurdenQC_GeneSetMedianImpact = QTLBurdenQC.QTLGeneBurdenQC_GeneSetMedianImpact
+    File? QTLBurdenOutlierEnrichment = QTLBurdenQC.QTLBurdenOutlierEnrichment
+    File? QTLBurdenMedianGenesPerBin = QTLBurdenQC.QTLBurdenMedianGenesPerBin 
+    File? QTLBurdenMedianGenesPerBinByGeneSet = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet
+    File? QTLBurdenMedianGenesPerBinDosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
+    File? QTLBurdenOutlierEnrichmentPermutation = QTLBurdenQC.QTLBurdenOutlierEnrichmentPermutation
+    File? QTLBurdenPerSampleGene = QTLBurdenQC.QTLBurdenPerSampleGene
 
   }
 }
