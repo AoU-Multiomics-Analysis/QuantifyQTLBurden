@@ -1,11 +1,13 @@
 name: Docker Image CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
     paths:
       - 'scripts/CleanQTLBurden.R'
       - 'scripts/PlotQTLBurdenQC.R'
+      - '.github/workflows/CleanQTLBurden.yml'
   #pull_request:
   #  branches: [ "main" ]
 
