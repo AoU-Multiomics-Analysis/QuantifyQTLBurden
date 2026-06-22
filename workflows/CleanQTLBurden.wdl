@@ -21,6 +21,21 @@ task CleanBurdenData {
         --GTF ~{GTF} \
         --AncestryAssignments ~{AncestryAssignments}
 
+    if [ -f /tmp/PlotQTLBurdenQC.R ]; then
+      Rscript /tmp/PlotQTLBurdenQC.R \
+        --QCFile QTLGeneBurdenQC.tsv.gz \
+        --Prefix QTLGeneBurdenQC
+    else
+      echo "PlotQTLBurdenQC.R not found in /tmp; creating placeholder outputs."
+      touch QTLGeneBurdenQC_StatusByGeneType.pdf
+      touch QTLGeneBurdenQC_StatusOverall.pdf
+      touch QTLGeneBurdenQC_Missingness.pdf
+      touch QTLGeneBurdenQC_VarianceRatio.pdf
+      touch QTLGeneBurdenQC_TailZ.pdf
+      touch QTLGeneBurdenQC_DominantVariantFraction.pdf
+      touch QTLGeneBurdenQC_ReasonCounts.pdf
+    fi
+
     >>>
 
     runtime {
@@ -34,6 +49,14 @@ task CleanBurdenData {
         File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
         File QTLGeneBurdenQC = "QTLGeneBurdenQC.tsv.gz"
+        File QTLGeneBurdenStatusList = "QTLGeneBurdenStatusList.tsv.gz"
+        File QTLGeneBurdenQC_StatusByGeneType = "QTLGeneBurdenQC_StatusByGeneType.pdf"
+        File QTLGeneBurdenQC_StatusOverall = "QTLGeneBurdenQC_StatusOverall.pdf"
+        File QTLGeneBurdenQC_Missingness = "QTLGeneBurdenQC_Missingness.pdf"
+        File QTLGeneBurdenQC_VarianceRatio = "QTLGeneBurdenQC_VarianceRatio.pdf"
+        File QTLGeneBurdenQC_TailZ = "QTLGeneBurdenQC_TailZ.pdf"
+        File QTLGeneBurdenQC_DominantVariantFraction = "QTLGeneBurdenQC_DominantVariantFraction.pdf"
+        File QTLGeneBurdenQC_ReasonCounts = "QTLGeneBurdenQC_ReasonCounts.pdf"
         File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv"
         File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
     }
@@ -63,6 +86,14 @@ workflow CleanQTLBurden {
         File CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
         File QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
         File QTLGeneBurdenQC = CleanBurdenData.QTLGeneBurdenQC
+        File QTLGeneBurdenStatusList = CleanBurdenData.QTLGeneBurdenStatusList
+        File QTLGeneBurdenQC_StatusByGeneType = CleanBurdenData.QTLGeneBurdenQC_StatusByGeneType
+        File QTLGeneBurdenQC_StatusOverall = CleanBurdenData.QTLGeneBurdenQC_StatusOverall
+        File QTLGeneBurdenQC_Missingness = CleanBurdenData.QTLGeneBurdenQC_Missingness
+        File QTLGeneBurdenQC_VarianceRatio = CleanBurdenData.QTLGeneBurdenQC_VarianceRatio
+        File QTLGeneBurdenQC_TailZ = CleanBurdenData.QTLGeneBurdenQC_TailZ
+        File QTLGeneBurdenQC_DominantVariantFraction = CleanBurdenData.QTLGeneBurdenQC_DominantVariantFraction
+        File QTLGeneBurdenQC_ReasonCounts = CleanBurdenData.QTLGeneBurdenQC_ReasonCounts
         File QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
         File QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
     }
