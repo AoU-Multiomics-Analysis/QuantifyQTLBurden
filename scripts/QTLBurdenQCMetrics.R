@@ -138,7 +138,8 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
        (median_variance_ratio > VarianceRatioWarnUpper & median_variance_ratio <= VarianceRatioUpper)),
     qc_flag_tail_fail = !is.na(max_abs_centered_z_population) & (max_abs_centered_z_population > TailZFailThreshold),
     qc_flag_tail_warn = !is.na(max_abs_centered_z_population) & (max_abs_centered_z_population > TailZWarnThreshold) & !qc_flag_tail_fail,
-    qc_flag_dominant_variant_warn = dominant_variant_fraction_effect >= DominantVariantWarnThreshold,
+    qc_flag_dominant_variant_warn = dominant_variant_fraction_effect >= DominantVariantWarnThreshold &
+      n_afc_variants < 3,
     qc_fail_count = qc_flag_missingness_fail + qc_flag_context_fail + qc_flag_variance_fail + qc_flag_tail_fail,
     qc_warn_count = qc_flag_missingness_warn + qc_flag_variance_warn + qc_flag_tail_warn + qc_flag_dominant_variant_warn,
     QC_Status = case_when(
