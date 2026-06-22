@@ -3,7 +3,8 @@ name: Docker Image CI
 on:
   push:
     branches: [ "main" ]
-    paths: 'scripts/QTLBurden.R'
+    paths:
+      - 'scripts/QTLBurden.R'
 
   #pull_request:
   #  branches: [ "main" ]
