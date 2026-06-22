@@ -39,7 +39,9 @@ option_list <- list(
   optparse::make_option(c("--TailZFailThreshold"), type = "double", default = 25,
                         help = "Fail genes with extreme max |CenteredEffectZPopulation| above this value"),
   optparse::make_option(c("--TailZWarnThreshold"), type = "double", default = 15,
-                        help = "Warn when max |CenteredEffectZPopulation| is above this value"),
+                        help = "Warn threshold for |CenteredEffectZPopulation| samples included in proportion check"),
+  optparse::make_option(c("--TailZWarnSampleProportionThreshold"), type = "double", default = 0.05,
+                        help = "Warn when fraction of samples with |CenteredEffectZPopulation| above TailZWarnThreshold exceeds this value"),
   optparse::make_option(c("--DominantVariantWarnThreshold"), type = "double", default = 0.98,
                         help = "Warn when a single variant explains more than this fraction of abs burden")
 )
@@ -59,6 +61,7 @@ VarianceRatioWarnLower <- opt$VarianceRatioWarnLower
 VarianceRatioWarnUpper <- opt$VarianceRatioWarnUpper
 TailZFailThreshold <- opt$TailZFailThreshold
 TailZWarnThreshold <- opt$TailZWarnThreshold
+TailZWarnSampleProportionThreshold <- opt$TailZWarnSampleProportionThreshold
 DominantVariantWarnThreshold <- opt$DominantVariantWarnThreshold
 
 message('Loading cleaned burden')
@@ -108,6 +111,11 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
     median_abs_centered_effect = median(abs(CenteredEffectPopulation), na.rm = TRUE),
     max_abs_centered_z_population = safe_max_abs(CenteredEffectZPopulation),
     median_abs_centered_z_population = median(abs(CenteredEffectZPopulation), na.rm = TRUE),
+    fraction_samples_with_large_centered_z_population = if_else(
+      n_samples > 0,
+      mean(abs(CenteredEffectZPopulation) > TailZWarnThreshold, na.rm = TRUE),
+      NA_real_
+    ),
     max_abs_centered_z_empirical_population = safe_max_abs(CenteredEffectZEmpiricalPopulation),
     median_abs_centered_z_empirical_population = median(abs(CenteredEffectZEmpiricalPopulation), na.rm = TRUE),
     fraction_samples_without_context = mean(
@@ -137,7 +145,9 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
       ((median_variance_ratio >= VarianceRatioLower & median_variance_ratio < VarianceRatioWarnLower) |
        (median_variance_ratio > VarianceRatioWarnUpper & median_variance_ratio <= VarianceRatioUpper)),
     qc_flag_tail_fail = !is.na(max_abs_centered_z_population) & (max_abs_centered_z_population > TailZFailThreshold),
-    qc_flag_tail_warn = !is.na(max_abs_centered_z_population) & (max_abs_centered_z_population > TailZWarnThreshold) & !qc_flag_tail_fail,
+    qc_flag_tail_warn = !is.na(max_abs_centered_z_population) &
+      (fraction_samples_with_large_centered_z_population > TailZWarnSampleProportionThreshold) &
+      !qc_flag_tail_fail,
     qc_flag_dominant_variant_warn = dominant_variant_fraction_effect >= DominantVariantWarnThreshold &
       n_afc_variants < 3,
     qc_fail_count = qc_flag_missingness_fail + qc_flag_context_fail + qc_flag_variance_fail + qc_flag_tail_fail,

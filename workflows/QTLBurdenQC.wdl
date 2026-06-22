@@ -13,6 +13,7 @@ task ComputeQTLBurdenQC {
     Float VarianceRatioWarnUpper = 3
     Float TailZFailThreshold = 25
     Float TailZWarnThreshold = 15
+    Float TailZWarnSampleProportionThreshold = 0.05
     Float DominantVariantWarnThreshold = 0.98
   }
 
@@ -29,6 +30,7 @@ task ComputeQTLBurdenQC {
     --VarianceRatioWarnUpper ~{VarianceRatioWarnUpper} \
     --TailZFailThreshold ~{TailZFailThreshold} \
     --TailZWarnThreshold ~{TailZWarnThreshold} \
+    --TailZWarnSampleProportionThreshold ~{TailZWarnSampleProportionThreshold} \
     --DominantVariantWarnThreshold ~{DominantVariantWarnThreshold}
   >>>
 
@@ -158,6 +160,7 @@ workflow QTLBurdenQC {
     Float input_variance_ratio_warn_upper = 3
     Float input_tail_z_fail_threshold = 25
     Float input_tail_z_warn_threshold = 15
+    Float input_tail_z_warn_sample_proportion_threshold = 0.05
     Float input_dominant_variant_warn_threshold = 0.98
     String input_qc_plot_prefix = "QTLGeneBurdenQC"
   }
@@ -188,6 +191,7 @@ workflow QTLBurdenQC {
         VarianceRatioWarnUpper = input_variance_ratio_warn_upper,
         TailZFailThreshold = input_tail_z_fail_threshold,
         TailZWarnThreshold = input_tail_z_warn_threshold,
+        TailZWarnSampleProportionThreshold = input_tail_z_warn_sample_proportion_threshold,
         DominantVariantWarnThreshold = input_dominant_variant_warn_threshold
     }
 
