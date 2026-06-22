@@ -50,6 +50,7 @@ The quantification model computes analytic, one-sided tail probabilities for eac
 - In practice:
   - deletion/loss direction => `P(L <= loss_threshold)`
   - duplication/gain direction => `P(L >= gain_threshold)`
+  - for each sample, this is the chance the dosage-weighted perturbation pushes the gene at least to the configured threshold, given the effect-size uncertainty (`log2_aFC` means and SEs).
   - `burden_probability` is set from the selected `BurdenDirection` in [`QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl), while both per-direction probabilities are always written as:
     - `burden_probability_loss50`
     - `burden_probability_gain50`.

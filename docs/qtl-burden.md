@@ -16,9 +16,11 @@ L = sum(genotype_dosage_variant * beta_variant)
 
 For loss-like calls:
 P(loss-like | data) = P(L < threshold_loss)
+  - dosage-like perturbation state is fixed by the sample’s per-variant dosages
 
 For over-expression/gain calls:
 P(gain-like | data) = P(L > threshold_gain)
+  - dosage-like perturbation state is fixed by the sample’s per-variant dosages
 
 See [`burden-probability.md`](burden-probability.md) for full formulas, implementation details, and interpretation.
 ```

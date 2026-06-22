@@ -30,6 +30,17 @@ L ~ Normal(μ_L, σ_L^2)
 σ_L^2 = Σ_i d_i^2 * SE_i^2
 ```
 
+### Intuition
+
+Think of each individual’s genotype dosages as a fixed **dosage-like perturbation profile** (the weights `d_i`) applied to the variant effect sizes.
+
+If you could repeatedly draw effect sizes from their uncertainty distributions (`β_i ~ Normal(β_i, SE_i^2)`), the gene burden `L` varies around `μ_L`.
+
+Then:
+
+- `burden_probability_loss50` is the probability this perturbation shifts expression at least as low as the loss cutoff.
+- `burden_probability_gain50` is the probability this perturbation shifts expression at least as high as the gain cutoff.
+
 If no standard error is available for a variant (`SE_i` missing), `SE_i` is set to `0` for that variant.
 
 `QTLBurden.R` also accepts 95% CI bounds directly:
@@ -83,6 +94,13 @@ In the cleaning step, quality flags and downstream weighted summaries use:
 ## Interpretation
 
 These are analytic tail probabilities under an approximate normal model, not empirical permutation frequencies or bootstrap estimates.
-They describe the probability (given uncertainty in aFC), that total burden is at least as extreme as the configured threshold in the expected direction of regulation.
+They can be read as:
+
+```text
+P(L ≥ gain_threshold | {β_i, SE_i}, dosage profile)  [for gain-like direction]
+P(L ≤ loss_threshold | {β_i, SE_i}, dosage profile)  [for loss-like direction]
+```
+
+In words: the chance of observing an extreme expression effect (at or beyond the configured threshold) for that sample-gene pair, under uncertainty in effect sizes but with the observed dosage profile fixed.
 
 `BurdenProbability` values can be interpreted as tail-based confidence for extreme expression change, and are suitable for continuous/weighted summaries, flagging, or filtering.
