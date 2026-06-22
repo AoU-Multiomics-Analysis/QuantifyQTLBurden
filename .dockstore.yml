@@ -15,3 +15,6 @@ workflows:
   - subclass: WDL
     primaryDescriptorPath: /workflows/QTLBurdenQC.wdl
     name: "QTLBurdenQC"
+  - subclass: WDL
+    primaryDescriptorPath: /workflows/QuantifyQTLBurdenCore.wdl
+    name: "QuantifyQTLBurdenCore"
