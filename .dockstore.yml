@@ -12,3 +12,6 @@ workflows:
   - subclass: WDL 
     primaryDescriptorPath: /workflows/CleanQTLBurden.wdl
     name: "CleanQTLBurdenTask"
+  - subclass: WDL
+    primaryDescriptorPath: /workflows/QTLBurdenQC.wdl
+    name: "QTLBurdenQC"
