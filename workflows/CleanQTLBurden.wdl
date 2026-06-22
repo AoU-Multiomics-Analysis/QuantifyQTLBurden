@@ -5,10 +5,11 @@ task CleanBurdenData {
         File MergedQTLBurden
         File AlleleFrequencies
         File ExpressionZscores 
-        File aFC 
+        File aFC
         File AncestryAssignments
         File eQTLSusie
         File GTF
+        Float BurdenTailProbability = 0.9
     }
     
     command <<<
@@ -19,7 +20,8 @@ task CleanBurdenData {
         --eQTLSusie ~{eQTLSusie} \
         --aFC ~{aFC} \
         --GTF ~{GTF} \
-        --AncestryAssignments ~{AncestryAssignments}
+        --AncestryAssignments ~{AncestryAssignments} \
+        --BurdenTailProbability ~{BurdenTailProbability}
 
     if [ -f /tmp/PlotQTLBurdenQC.R ]; then
       Rscript /tmp/PlotQTLBurdenQC.R \
@@ -63,6 +65,8 @@ task CleanBurdenData {
         File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv"
         File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
         File QTLBurdenMedianGenesPerBinByGeneSet = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
+        File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = "QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv"
+        File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = "QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv"
         File QTLBurdenOutlierEnrichmentPermutation = "QTLBurdenOutlierEnrichmentPermutation.tsv"
         File QTLBurdenPerSampleGene = "QTLBurdenPerSampleGene.parquet"
     }
@@ -77,6 +81,7 @@ workflow CleanQTLBurden {
         File MergedQTLBurden
         File eQTLSusie
         File GTF
+        Float BurdenTailProbability = 0.9
     }
     call CleanBurdenData {
       input:
@@ -86,7 +91,8 @@ workflow CleanQTLBurden {
         aFC = aFCWeights,
         AncestryAssignments = AncestryAssignments,
         GTF = GTF,
-        eQTLSusie = eQTLSusie
+        eQTLSusie = eQTLSusie,
+        BurdenTailProbability = BurdenTailProbability
     }
     output {
         File CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
@@ -104,6 +110,8 @@ workflow CleanQTLBurden {
         File QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
         File QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
         File QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet
+        File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
+        File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
         File QTLBurdenOutlierEnrichmentPermutation = CleanBurdenData.QTLBurdenOutlierEnrichmentPermutation
         File QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
     }

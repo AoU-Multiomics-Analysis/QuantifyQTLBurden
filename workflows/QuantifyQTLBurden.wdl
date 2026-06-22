@@ -111,12 +111,20 @@ task QuantifyQTLBurden {
         File aFCWeights
         File VCF
         File IndexVCF
+        Float LossThreshold = -0.5849625007
+        Float GainThreshold = 0.5849625007
+        String BurdenDirection = "both"
+        String VariantEffectSEColumn = "auto"
     }
 
     String shard_base = basename(aFCWeights, ".tsv")
     command <<<
     Rscript /tmp/QTLBurden.R \
         --AllelicFoldChangeData ~{aFCWeights} \
+        --VariantEffectSEColumn ~{VariantEffectSEColumn} \
+        --LossThreshold ~{LossThreshold} \
+        --GainThreshold ~{GainThreshold} \
+        --BurdenDirection ~{BurdenDirection} \
         --GenotypeData ~{VCF} \
         --OutputPrefix ~{shard_base}
     >>>
@@ -180,6 +188,11 @@ workflow qtl_burden_workflow {
     Boolean AnnotateBurden = true
     File GTF 
     File eQTLSusie
+    Float LossThreshold = -0.5849625007
+    Float GainThreshold = 0.5849625007
+    String BurdenDirection = "both"
+    String VariantEffectSEColumn = "auto"
+    Float BurdenTailProbability = 0.9
   }
 
   call shard_afc_by_gene {
@@ -195,7 +208,11 @@ workflow qtl_burden_workflow {
       input:
         aFCWeights = shard,
         VCF = VCF,
-        IndexVCF = IndexVCF
+        IndexVCF = IndexVCF,
+        LossThreshold = LossThreshold,
+        GainThreshold = GainThreshold,
+        BurdenDirection = BurdenDirection,
+        VariantEffectSEColumn = VariantEffectSEColumn
     }
   }
 
@@ -213,7 +230,8 @@ workflow qtl_burden_workflow {
         aFCWeights = aFCWeights,
         AncestryAssignments = AncestryAssignments,
         GTF = GTF,
-        eQTLSusie = eQTLSusie
+        eQTLSusie = eQTLSusie,
+        BurdenTailProbability = BurdenTailProbability
     }
   }
 
@@ -238,6 +256,8 @@ workflow qtl_burden_workflow {
     File? QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
     File? QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
     File? QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet
+    File? QTLBurdenMedianGenesPerBinDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
     File? QTLBurdenOutlierEnrichmentPermutation = CleanBurdenData.QTLBurdenOutlierEnrichmentPermutation
     File? QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
 

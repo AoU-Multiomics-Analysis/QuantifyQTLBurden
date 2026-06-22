@@ -63,6 +63,8 @@ option_list <- list(
                           help = "Warn when max |CenteredEffectZPopulation| is above this value"),
     optparse::make_option(c("--DominantVariantWarnThreshold"), type = "double", default = 0.98,
                           help = "Warn when a single variant explains more than this fraction of abs burden"),
+    optparse::make_option(c("--BurdenTailProbability"), type = "double", default = NA_real_,
+                          help = "Tail-probability cutoff for keeping confident loss/gain calls when computing noisy-filtered median counts."),
     optparse::make_option(c("--OutlierPermutationIterations"), type = "integer", default = 200,
                           help = "Number of permutations used for null enrichment benchmarking")
 )
@@ -87,7 +89,11 @@ TailZFailThreshold <- opt$TailZFailThreshold
 TailZWarnThreshold <- opt$TailZWarnThreshold
 DominantVariantWarnThreshold <- opt$DominantVariantWarnThreshold
 OutlierPermutationIterations <- opt$OutlierPermutationIterations
-
+BurdenTailProbability <- if (is.finite(opt$BurdenTailProbability)) {
+  opt$BurdenTailProbability
+} else {
+  0.9
+}
 ####### LOAD DATA ###############
 message('Loading GTF')
 gene_annotations <- rtracklayer::import(GTFPath)
@@ -143,6 +149,13 @@ QTLBurdenMerge <- fread(BurdenPath) %>%
             UpOutlier = ObservedZ > 4,
             DownOutlier = ObservedZ < -4
         ) 
+
+if (!"burden_probability_loss50" %in% names(QTLBurdenMerge)) {
+  QTLBurdenMerge$burden_probability_loss50 <- NA_real_
+}
+if (!"burden_probability_gain50" %in% names(QTLBurdenMerge)) {
+  QTLBurdenMerge$burden_probability_gain50 <- NA_real_
+}
 
 
 
@@ -206,6 +219,29 @@ QTLBurdenZscores <- QTLBurdenMerge %>%
         TRUE ~ NA_character_
       )
     )
+
+if (is.finite(BurdenTailProbability) && BurdenTailProbability > 0) {
+  QTLBurdenZscores <- QTLBurdenZscores %>%
+    mutate(
+      deletion_call_confident = ifelse(
+        PercentChangeCenteredEffectPopulation <= -50,
+        is.na(burden_probability_loss50) | (burden_probability_loss50 >= BurdenTailProbability),
+        TRUE
+      ),
+      duplication_call_confident = ifelse(
+        PercentChangeCenteredEffectPopulation >= 50,
+        is.na(burden_probability_gain50) | (burden_probability_gain50 >= BurdenTailProbability),
+        TRUE
+      ),
+      is_noisy_extreme_call = (!deletion_call_confident & PercentChangeCenteredEffectPopulation <= -50) |
+        (!duplication_call_confident & PercentChangeCenteredEffectPopulation >= 50),
+      is_dosage_extreme_call = PercentChangeCenteredEffectPopulation <= -50 |
+        PercentChangeCenteredEffectPopulation >= 50
+    ) %>%
+    select(-deletion_call_confident, -duplication_call_confident)
+} else {
+  QTLBurdenZscores <- QTLBurdenZscores %>% mutate(is_noisy_extreme_call = FALSE, is_dosage_extreme_call = PercentChangeCenteredEffectPopulation <= -50 | PercentChangeCenteredEffectPopulation >= 50)
+}
 
 QTLBurdenZscores %>% write_tsv('QTLBurdenSummary.cleaned.tsv.gz')
 
@@ -351,7 +387,7 @@ GeneBurdenCounts <- QTLBurdenZscores %>%
     max_abs_burden = max(abs(PercentChangeCenteredEffectPopulation), na.rm = TRUE),
     mean_abs_burden = mean(abs(PercentChangeCenteredEffectPopulation), na.rm = TRUE),
     n_deletion_like = sum(PercentChangeCenteredEffectPopulation <= -50, na.rm = TRUE),
-    n_duplication_like = sum(PercentChangeCenteredEffectPopulation >= 150, na.rm = TRUE),
+    n_duplication_like = sum(PercentChangeCenteredEffectPopulation >= 50, na.rm = TRUE),
     n_validated_deletion = sum(
       PercentChangeCenteredEffectPopulation <= -50 &
         ObservedZ <= -3,
@@ -405,7 +441,11 @@ QTLBurdenPerSampleGene <- QTLBurdenFiltered %>%
       GeneVariance_Population,
       EmpiricalVariance_Population,
       has_missing_genotype,
-      n_missing_genotypes
+      n_missing_genotypes,
+      burden_probability_loss50,
+      burden_probability_gain50,
+      is_noisy_extreme_call,
+      is_dosage_extreme_call
     )
 
 arrow::write_parquet(
@@ -413,17 +453,30 @@ arrow::write_parquet(
   "QTLBurdenPerSampleGene.parquet"
 )
 
-compute_median_genes_per_bin <- function(df, remove_pids = character(0), gene_category = "All") {
+compute_median_genes_per_bin <- function(df, remove_pids = character(0), remove_noisy_dosage_extremes = TRUE, gene_category = "All") {
   filtered <- if (length(remove_pids) == 0) {
     df
   } else {
     df %>% filter(!pid %in% remove_pids)
   }
 
+  if (remove_noisy_dosage_extremes) {
+    filtered <- filtered %>%
+      filter(!(is_dosage_extreme_call & is_noisy_extreme_call))
+  }
+
   filtered %>%
+    mutate(
+      burden_tail_weight = case_when(
+        PercentChangeCenteredEffectPopulation <= -50 ~ coalesce(burden_probability_loss50, 1),
+        PercentChangeCenteredEffectPopulation >= 50 ~ coalesce(burden_probability_gain50, 1),
+        TRUE ~ 1
+      )
+    ) %>%
     group_by(individual_id, PercentChangeBin, gene_type) %>%
     summarise(
       n_genes = n(),
+      weighted_n_genes = sum(burden_tail_weight, na.rm = TRUE),
       median_abs_z_individual = median(abs(ObservedZ), na.rm = TRUE),
       .groups = "drop"
     ) %>%
@@ -432,6 +485,9 @@ compute_median_genes_per_bin <- function(df, remove_pids = character(0), gene_ca
       median_genes = median(n_genes, na.rm = TRUE),
       q25_genes = quantile(n_genes, 0.25, na.rm = TRUE),
       q75_genes = quantile(n_genes, 0.75, na.rm = TRUE),
+      median_weighted_genes = median(weighted_n_genes, na.rm = TRUE),
+      q25_weighted_genes = quantile(weighted_n_genes, 0.25, na.rm = TRUE),
+      q75_weighted_genes = quantile(weighted_n_genes, 0.75, na.rm = TRUE),
       median_abs_z = median(median_abs_z_individual, na.rm = TRUE),
       .groups = "drop"
     ) %>%
@@ -446,12 +502,28 @@ compute_median_genes_per_bin <- function(df, remove_pids = character(0), gene_ca
 MedianGenesPerIndividual <- compute_median_genes_per_bin(
   df = QTLBurdenPerSampleGene,
   remove_pids = character(0),
+  remove_noisy_dosage_extremes = FALSE,
+  gene_category = "All"
+)
+
+MedianGenesPerIndividualNoisyFiltered <- compute_median_genes_per_bin(
+  df = QTLBurdenPerSampleGene,
+  remove_pids = character(0),
+  remove_noisy_dosage_extremes = TRUE,
   gene_category = "All"
 )
 
 MedianGenesPerIndividualCodingVariantGenesRemoved <- compute_median_genes_per_bin(
   df = QTLBurdenPerSampleGene,
   remove_pids = CodingVariantGenes,
+  remove_noisy_dosage_extremes = FALSE,
+  gene_category = "CausalCodingVariantGenesRemoved"
+)
+
+MedianGenesPerIndividualCodingVariantGenesRemovedNoisyFiltered <- compute_median_genes_per_bin(
+  df = QTLBurdenPerSampleGene,
+  remove_pids = CodingVariantGenes,
+  remove_noisy_dosage_extremes = TRUE,
   gene_category = "CausalCodingVariantGenesRemoved"
 )
 
@@ -465,11 +537,22 @@ DominantVariantWarnGenes <- aFCGeneQC %>%
 MedianGenesPerIndividualDominantVariantGenesRemoved <- compute_median_genes_per_bin(
   df = QTLBurdenPerSampleGene,
   remove_pids = DominantVariantWarnGenes,
+  remove_noisy_dosage_extremes = FALSE,
   gene_category = "DominantVariantGenesRemoved"
 )
 
-MedianGenesSummary <- bind_rows(MedianGenesPerIndividual,MedianGenesPerIndividualCodingVariantGenesRemoved)
+MedianGenesPerIndividualDominantVariantGenesRemovedNoisyFiltered <- compute_median_genes_per_bin(
+  df = QTLBurdenPerSampleGene,
+  remove_pids = DominantVariantWarnGenes,
+  remove_noisy_dosage_extremes = TRUE,
+  gene_category = "DominantVariantGenesRemoved"
+)
+
+MedianGenesSummary <- MedianGenesPerIndividual
 MedianGenesSummary %>% write_tsv('QTLBurdenMedianGenesPerBin.tsv')
+
+MedianGenesSummaryNoisyFiltered <- MedianGenesPerIndividualNoisyFiltered
+MedianGenesSummaryNoisyFiltered %>% write_tsv('QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv')
 
 MedianGenesByGeneSetSummary <- bind_rows(
   MedianGenesPerIndividual,
@@ -479,6 +562,15 @@ MedianGenesByGeneSetSummary <- bind_rows(
   arrange(GeneCategory, gene_type, PercentChangeBin)
 
 MedianGenesByGeneSetSummary %>% write_tsv('QTLBurdenMedianGenesPerBinByGeneSet.tsv')
+
+MedianGenesByGeneSetSummaryNoisyFiltered <- bind_rows(
+  MedianGenesPerIndividualNoisyFiltered,
+  MedianGenesPerIndividualCodingVariantGenesRemovedNoisyFiltered,
+  MedianGenesPerIndividualDominantVariantGenesRemovedNoisyFiltered
+) %>%
+  arrange(GeneCategory, gene_type, PercentChangeBin)
+
+MedianGenesByGeneSetSummaryNoisyFiltered %>% write_tsv('QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv')
 
 ####### COMPUTE OUTLIER ENRICHMENT PER PERCENT CHANGE BIN ##########
 message('Computing outlier enrichment')
@@ -550,6 +642,8 @@ compute_bin_enrichment <- function(df, focal_lower_bound, ref_lower_bound = -10,
 
 run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm, type_label, outlier_col) {
   permuted_log_or <- vector("list", n_perm)
+  start_time <- Sys.time()
+  report_every <- max(1L, floor(n_perm / 10))
 
   for (iter_idx in seq_len(n_perm)) {
     permuted_data <- benchmark_data %>%
@@ -569,11 +663,29 @@ run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm, type_
           outlier_col = outlier_col
         )
       }
-    ) %>%
+      ) %>%
       mutate(
         permutation = iter_idx,
         type = type_label
       )
+
+    if (iter_idx %% report_every == 0 || iter_idx == n_perm) {
+      elapsed_seconds <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
+      remaining_seconds <- if (iter_idx == 0) {
+        NA_real_
+      } else {
+        (elapsed_seconds / iter_idx) * (n_perm - iter_idx)
+      }
+      message(sprintf(
+        "[%s] permutation %d/%d (%.1f%%) complete; elapsed=%0.1fs; eta=%0.1fs",
+        type_label,
+        iter_idx,
+        n_perm,
+        (iter_idx / n_perm) * 100,
+        elapsed_seconds,
+        ifelse(is.nan(remaining_seconds), NA_real_, remaining_seconds)
+      ))
+    }
   }
 
   bind_rows(permuted_log_or)

@@ -9,6 +9,19 @@ The primary burden statistic is:
 ```text
 predicted_effect = sum(genotype_dosage_variant * log2_aFC_variant)
 ```
+An optional analytic extreme-expression posterior is also reported:
+
+```text
+L = sum(genotype_dosage_variant * beta_variant)
+
+For loss-like calls:
+P(loss-like | data) = P(L < threshold_loss)
+
+For over-expression/gain calls:
+P(gain-like | data) = P(L > threshold_gain)
+
+See [`burden-probability.md`](burden-probability.md) for full formulas, implementation details, and interpretation.
+```
 
 The cleaning step can also compute ancestry/population-centered values:
 
@@ -31,6 +44,8 @@ Stages:
 3. `AggregateQTLBurden`: concatenates shard-level burden summaries.
 4. `CleanBurdenData`: optionally runs [`../scripts/CleanQTLBurden.R`](../scripts/CleanQTLBurden.R) for annotation and summary outputs.
 
+The Quantify branch (`QTLBurden.R`) itself does not require PIP and does not apply fine-mapping shrinkage; it is purely based on effect-size distributions and genotypes.
+
 Inputs:
 
 | Input | Type | Description |
@@ -38,6 +53,11 @@ Inputs:
 | `aFCWeights` | File | TSV or TSV.GZ containing fine-mapped QTL variants and allelic fold-change effects. |
 | `VCF` | File | Genotype VCF, ideally subset to variants present in the aFC file. |
 | `IndexVCF` | File | Index for `VCF`, typically `.tbi`. |
+| `LossThreshold` | Float | Log2 cutoff for loss calls. Default: `-0.5849625007` (50% decrease). |
+| `GainThreshold` | Float | Log2 cutoff for gain calls. Default: `0.5849625007` (+50%). |
+| `BurdenDirection` | String | `deletion`, `duplication`, or `both` (legacy aliases `loss`/`gain`). Default: `both`. |
+| `BurdenTailProbability` | Float | Tail-probability cutoff used to flag low-confidence extreme calls (`is_noisy_extreme_call`) in outputs. Default: `0.9`. |
+| `VariantEffectSEColumn` | String | Optional column name for log2(aFC) standard error (or `auto`). |
 | `AlleleFrequencies` | File | Allele-frequency table for expected burden and variance. |
 | `ExpressionZscores` | File | Matrix of observed expression z scores. |
 | `AncestryAssignments` | File | Table mapping individuals to ancestry groups. |
@@ -63,6 +83,7 @@ The aFC weights file should contain at least:
 | `sid_chr` | Variant chromosome. |
 | `sid_pos` | Variant position. |
 | `log2_aFC` | Allelic fold-change effect size on the log2 scale. |
+| `log2_aFC_se` | Optional standard error for log2_aFC (if available). |
 
 The VCF should contain genotype fields for all samples to be scored. [`../scripts/QTLBurden.R`](../scripts/QTLBurden.R) parses GT values before the first `:` and supports:
 
@@ -96,6 +117,13 @@ Important raw burden columns include:
 | `net_load` | `up_load - down_load`. |
 | `total_load` | `up_load + down_load`. |
 | `total_abs_effect` | Sum of absolute variant contributions. |
+| `is_noisy_extreme_call` | TRUE when a strong extreme call (<= -50% or >= 50% centered change) has low tail confidence below `BurdenTailProbability`. |
+| `is_dosage_extreme_call` | TRUE when the centered effect is in an extreme dosage-driven bin (`<= -50%` or `>= 50%`). |
+| `burden_mean` | Analytic mean total log2 burden for the active direction. |
+| `burden_sd` | Analytic SD of the active directional burden. |
+| `burden_probability` | Probabilistic extreme-expression score (one-sided tail), based on `LossThreshold`, `GainThreshold`, and `BurdenDirection` behavior. |
+| `burden_probability_loss50` | Loss posterior `P(L < LossThreshold)`. |
+| `burden_probability_gain50` | Gain posterior `P(L > GainThreshold)`. |
 | `n_contributing_variants` | Number of variants with nonzero contribution. |
 | `dominant_variant_fraction_abs` | Fraction of absolute burden explained by the largest contribution. |
 | `N_eff_abs` | Effective number of contributing variants based on absolute effects. |
@@ -116,7 +144,12 @@ When `AnnotateBurden = true`, the workflow can also emit:
 | `QTLGeneBurdenQC_TailZ.pdf` | Tail behavior diagnostics for centered burden z scores. |
 | `QTLGeneBurdenQC_DominantVariantFraction.pdf` | Dominant-variant fraction diagnostics. |
 | `QTLGeneBurdenQC_ReasonCounts.pdf` | Frequency of fail/warn reasons by type. |
-| `QTLBurdenMedianGenesPerBin.tsv` | Median genes per individual in each percent-change bin. |
+| `QTLBurdenMedianGenesPerBinByGeneSet.tsv` | Median genes per individual per bin by gene set (`All`, `CausalCodingVariantGenesRemoved`, `DominantVariantGenesRemoved`). |
+| `QTLBurdenMedianGenesPerBin.tsv` | Median genes per individual in each percent-change bin (all calls, no extreme-noise filtering). |
+| `QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv` | Median genes per individual in each percent-change bin after removing dosage-extreme rows flagged as noisy (`is_dosage_extreme_call & is_noisy_extreme_call`). |
+| `QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv` | Same as above, split by gene set (`All`, `CausalCodingVariantGenesRemoved`, `DominantVariantGenesRemoved`). |
+| `QTLBurdenMedianGenesPerBin*.tsv` | Also adds `median_genes`, `q25_genes`, `q75_genes` (unweighted counts), and `median_weighted_genes`, `q25_weighted_genes`, `q75_weighted_genes` (weighted by `burden_tail_weight`: `P(loss-like)` for `<= -50`, `P(gain-like)` for `>= 50`, `1` otherwise). |
+| `QTLBurdenPerSampleGene.parquet` | Per-sample, per-gene burden table used for downstream medians and enrichment analyses. |
 | `QTLBurdenOutlierEnrichment.tsv` | Observed expression outlier enrichment by burden bin. |
 
 ## Scripts

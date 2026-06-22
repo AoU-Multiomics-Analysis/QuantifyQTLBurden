@@ -29,6 +29,7 @@ The workflows stay separate:
 
 - [aFC workflows](docs/aFC.md)
 - [QTL burden workflows](docs/qtl-burden.md)
+- [Burden posterior probabilities](docs/burden-probability.md)
 - [Runtime, Terra, and repository layout](docs/runtime-and-layout.md)
 
 ## Scientific Summary
@@ -40,6 +41,20 @@ predicted_effect = sum(genotype_dosage_variant * log2_aFC_variant)
 ```
 
 Positive `log2_aFC` values increase predicted expression, and negative values decrease predicted expression. The cleaning workflow can also center predicted burden by ancestry-specific allele frequencies and compare predicted expression shifts to observed expression z scores.
+
+## Burden probability and extreme-call modeling
+
+The quantification model computes analytic, one-sided tail probabilities for each sample/gene from the per-individual total log2 burden:
+
+- [`docs/burden-probability.md`](docs/burden-probability.md) describes the exact formulas (`burden_probability_loss50`, `burden_probability_gain50`, `burden_probability`) and interpretation.
+- In practice:
+  - deletion/loss direction => `P(L <= loss_threshold)`
+  - duplication/gain direction => `P(L >= gain_threshold)`
+  - `burden_probability` is set from the selected `BurdenDirection` in [`QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl), while both per-direction probabilities are always written as:
+    - `burden_probability_loss50`
+    - `burden_probability_gain50`.
+
+If you also want the median-count strategy (all calls vs noisy-extreme filtered and weighted medians), that is documented under [QTL burden outputs](docs/qtl-burden.md).
 
 ## Repository Layout
 

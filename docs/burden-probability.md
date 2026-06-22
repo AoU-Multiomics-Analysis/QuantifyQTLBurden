@@ -1,0 +1,80 @@
+# Burden posterior probability model
+
+This document gives the exact computation used by [`scripts/QTLBurden.R`](../scripts/QTLBurden.R) to produce the burden posterior columns.
+
+## Per-individual, per-gene model
+
+For one gene and one individual:
+
+- Let `β_i` be the aFC effect (log2 scale) for variant `i`.
+- Let `SE_i` be its standard error.
+- Let `d_i` be genotype dosage (`0`, `1`, `2`; missing values are treated as `0` for the burden score and posterior computations).
+
+The model computes:
+
+```text
+L = Σ_i d_i * β_i
+```
+
+and assumes variant effects are independent normals:
+
+```text
+β_i ~ Normal(β_i, SE_i^2)
+```
+
+Then:
+
+```text
+L ~ Normal(μ_L, σ_L^2)
+μ_L = Σ_i d_i * β_i
+σ_L^2 = Σ_i d_i^2 * SE_i^2
+```
+
+If no standard error is available for a variant (`SE_i` missing), `SE_i` is set to `0` for that variant.
+
+## One-sided tail probabilities
+
+The log2 thresholds are:
+
+- `loss_threshold = log2(0.5)` by default (`-0.5849625007`)
+- `gain_threshold = log2(1.5)` by default (`0.5849625007`)
+
+Then:
+
+```text
+P(loss) = P(L <= loss_threshold)
+       = Φ((loss_threshold - μ_L) / σ_L)
+
+P(gain) = P(L >= gain_threshold)
+       = 1 - Φ((gain_threshold - μ_L) / σ_L)
+```
+
+where `Φ` is the standard normal CDF.
+
+If `σ_L` is effectively zero, the code returns a hard 0/1 tail call:
+
+- `P(loss) = I(μ_L <= loss_threshold)`
+- `P(gain) = I(μ_L >= gain_threshold)`
+
+## Output fields
+
+From one burden run, for each row (sample, gene):
+
+- `burden_probability_loss50` is `P(loss)`.
+- `burden_probability_gain50` is `P(gain)`.
+- `burden_probability` is direction-specific:
+  - if `BurdenDirection = loss` / `deletion`, it equals `P(loss)`
+  - if `BurdenDirection = gain` / `duplication`, it equals `P(gain)`
+  - if `BurdenDirection = both`, it is currently set to the loss tail (`P(loss)`)
+
+In the cleaning step, quality flags and downstream weighted summaries use:
+
+- `is_noisy_extreme_call` with `BurdenTailProbability` cutoff.
+- `burden_tail_weight` for weighted medians (`P(loss)` for negative-extreme bins, `P(gain)` for positive-extreme bins, and `1` otherwise).
+
+## Interpretation
+
+These are analytic posterior tail probabilities under an approximate normal model, not empirical permutation frequencies or bootstrap estimates.
+They describe the probability (given uncertainty in aFC), that total burden is at least as extreme as the configured threshold in the expected direction of regulation.
+
+`BurdenProbability` values can be interpreted as per-gene, per-sample confidence for extreme expression change, and are suitable for continuous/weighted summaries, flagging, or filtering.
