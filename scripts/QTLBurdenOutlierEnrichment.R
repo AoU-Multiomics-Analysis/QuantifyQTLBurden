@@ -79,6 +79,10 @@ if (OutlierPermutationIterations > 0) {
     filter(gene_type == "protein_coding") %>%
     select(PercentChangeBin, DownOutlier, UpOutlier)
 
+  if (nrow(OutlierBenchmarkData_AllCalls) == 0) {
+    stop("No protein_coding rows found for permutation benchmark.")
+  }
+
   OutlierPermutationNull <- bind_rows(
     run_permutation_enrichment(
       benchmark_data = OutlierBenchmarkData_AllCalls,
@@ -97,6 +101,10 @@ if (OutlierPermutationIterations > 0) {
   ) %>%
     mutate(enrichment_model = "AllCalls")
 
+  if (nrow(OutlierPermutationNull) == 0) {
+    stop("Permutation engine returned zero rows.")
+  }
+
   NullStats <- OutlierPermutationNull %>%
     group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
     summarize(
@@ -112,18 +120,23 @@ if (OutlierPermutationIterations > 0) {
   EmpiricalP <- OutlierPermutationNull %>%
     group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
     summarize(
-      empirical_p_greater = (sum(log_odds_ratio >= first(OutlierEnrichmentsRefBin$log_odds_ratio[
-        OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
-          OutlierEnrichmentsRefBin$type == type[1] &
-          OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
-          OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
-      ]), na.rm = TRUE) + 1) / (dplyr::n() + 1),
-      empirical_p_two_sided = (sum(abs(log_odds_ratio) >= abs(first(OutlierEnrichmentsRefBin$log_odds_ratio[
-        OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
-          OutlierEnrichmentsRefBin$type == type[1] &
-          OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
-          OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
-      ])), na.rm = TRUE) + 1) / (dplyr::n() + 1),
+      empirical_p_greater = (sum(
+        log_odds_ratio >= first(OutlierEnrichmentsRefBin$log_odds_ratio[
+          OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
+            OutlierEnrichmentsRefBin$type == type[1] &
+            OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
+            OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
+        ]
+      ), na.rm = TRUE) + 1) / (dplyr::n() + 1),
+      empirical_p_two_sided = (sum(
+        abs(log_odds_ratio) >= abs(first(OutlierEnrichmentsRefBin$log_odds_ratio[
+          OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
+            OutlierEnrichmentsRefBin$type == type[1] &
+            OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
+            OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
+        ])),
+        na.rm = TRUE
+      ) + 1) / (dplyr::n() + 1),
       .groups = "drop"
     )
 
@@ -136,86 +149,62 @@ if (OutlierPermutationIterations > 0) {
       EmpiricalP,
       by = c("type", "focal_lower_bound", "reference_lower_bound", "enrichment_model")
     )
-}
 
-OutlierEnrichmentPermutation <- OutlierEnrichmentsRefBin %>%
-  mutate(
-    permutation_count = 0L,
-    median_log_odds_ratio = NA_real_,
-    q25_log_odds_ratio = NA_real_,
-    q75_log_odds_ratio = NA_real_,
-    se_null_log_odds_ratio = NA_real_,
-    mean_log_odds_ratio = NA_real_,
-    empirical_p_greater = NA_real_,
-    empirical_p_two_sided = NA_real_
-  )
-
-if ("permutation_count" %in% names(OutlierEnrichmentsRefBin)) {
-  OutlierEnrichmentPermutation <- OutlierEnrichmentPermutation %>%
-    left_join(
-      OutlierEnrichmentsRefBin %>%
-        select(
-          enrichment_model,
-          type,
-          focal_lower_bound,
-          reference_lower_bound,
-          permutation_count = permutation_count,
-          median_log_odds_ratio = median_log_odds_ratio,
-          q25_log_odds_ratio = q25_log_odds_ratio,
-          q75_log_odds_ratio = q75_log_odds_ratio,
-          se_null_log_odds_ratio = se_null_log_odds_ratio,
-          mean_log_odds_ratio = mean_log_odds_ratio,
-          empirical_p_greater = empirical_p_greater,
-          empirical_p_two_sided = empirical_p_two_sided
-        ),
-      by = c("enrichment_model", "type", "focal_lower_bound", "reference_lower_bound"),
-      suffix = c("", ".perm")
-    ) %>%
+  OutlierEnrichmentPermutation <- OutlierEnrichmentsRefBin %>%
+    select(
+      enrichment_model,
+      type,
+      focal_lower_bound,
+      reference_lower_bound,
+      permutation_count = permutation_count,
+      median_log_odds_ratio = median_log_odds_ratio,
+      q25_log_odds_ratio = q25_log_odds_ratio,
+      q75_log_odds_ratio = q75_log_odds_ratio,
+      se_null_log_odds_ratio = se_null_log_odds_ratio,
+      mean_log_odds_ratio = mean_log_odds_ratio,
+      empirical_p_greater = empirical_p_greater,
+      empirical_p_two_sided = empirical_p_two_sided
+    )
+} else {
+  OutlierEnrichmentPermutation <- OutlierEnrichmentsRefBin %>%
     mutate(
-      permutation_count = if_else(
-        enrichment_model == "AllCalls",
-        permutation_count.perm,
-        0L
-      ),
-      median_log_odds_ratio = if_else(
-        enrichment_model == "AllCalls",
-        median_log_odds_ratio.perm,
-        NA_real_
-      ),
-      q25_log_odds_ratio = if_else(
-        enrichment_model == "AllCalls",
-        q25_log_odds_ratio.perm,
-        NA_real_
-      ),
-      q75_log_odds_ratio = if_else(
-        enrichment_model == "AllCalls",
-        q75_log_odds_ratio.perm,
-        NA_real_
-      ),
-      se_null_log_odds_ratio = if_else(
-        enrichment_model == "AllCalls",
-        se_null_log_odds_ratio.perm,
-        NA_real_
-      ),
-      mean_log_odds_ratio = if_else(
-        enrichment_model == "AllCalls",
-        mean_log_odds_ratio.perm,
-        NA_real_
-      ),
-      empirical_p_greater = if_else(
-        enrichment_model == "AllCalls",
-        empirical_p_greater.perm,
-        NA_real_
-      ),
-      empirical_p_two_sided = if_else(
-        enrichment_model == "AllCalls",
-        empirical_p_two_sided.perm,
-        NA_real_
-      )
+      permutation_count = 0L,
+      median_log_odds_ratio = NA_real_,
+      q25_log_odds_ratio = NA_real_,
+      q75_log_odds_ratio = NA_real_,
+      se_null_log_odds_ratio = NA_real_,
+      mean_log_odds_ratio = NA_real_,
+      empirical_p_greater = NA_real_,
+      empirical_p_two_sided = NA_real_
     ) %>%
-    select(-ends_with(".perm"))
+    select(
+      enrichment_model,
+      type,
+      focal_lower_bound,
+      reference_lower_bound,
+      permutation_count,
+      median_log_odds_ratio,
+      q25_log_odds_ratio,
+      q75_log_odds_ratio,
+      se_null_log_odds_ratio,
+      mean_log_odds_ratio,
+      empirical_p_greater,
+      empirical_p_two_sided
+    )
 }
 
-OutlierEnrichmentPermutation %>%
-  write_tsv("QTLBurdenOutlierEnrichmentPermutation.tsv")
+if (nrow(OutlierEnrichmentPermutation) != nrow(OutlierEnrichmentsRefBin)) {
+  stop("Permutation output rows do not match enrichment rows; refusing to write incomplete output.")
+}
 
+outlier_enrichment_permutation_file <- "QTLBurdenOutlierEnrichmentPermutation.tsv"
+OutlierEnrichmentPermutation %>%
+  write_tsv(outlier_enrichment_permutation_file)
+
+if (!file.exists(outlier_enrichment_permutation_file)) {
+  stop("Failed to write permutation output file: ", outlier_enrichment_permutation_file)
+}
+
+if (file.info(outlier_enrichment_permutation_file)$size == 0) {
+  stop("Permutation output file was written but is empty: ", outlier_enrichment_permutation_file)
+}
