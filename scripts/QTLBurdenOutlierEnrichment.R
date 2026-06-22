@@ -87,16 +87,7 @@ if (OutlierPermutationIterations > 0) {
     run_permutation_enrichment(
       benchmark_data = OutlierBenchmarkData_AllCalls,
       thresholds = thresholds,
-      n_perm = OutlierPermutationIterations,
-      type_label = "Down",
-      outlier_col = "DownOutlier"
-    ),
-    run_permutation_enrichment(
-      benchmark_data = OutlierBenchmarkData_AllCalls,
-      thresholds = thresholds,
-      n_perm = OutlierPermutationIterations,
-      type_label = "Up",
-      outlier_col = "UpOutlier"
+      n_perm = OutlierPermutationIterations
     )
   ) %>%
     mutate(enrichment_model = "AllCalls")

@@ -64,7 +64,7 @@ compute_bin_enrichment <- function(df, focal_lower_bound, ref_lower_bound = -10,
   )
 }
 
-run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm, type_label, outlier_col) {
+run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm) {
   permuted_log_or <- vector("list", n_perm)
   start_time <- Sys.time()
   report_every <- max(1L, floor(n_perm / 10))
@@ -72,25 +72,46 @@ run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm, type_
   for (iter_idx in seq_len(n_perm)) {
     permuted_data <- benchmark_data %>%
       mutate(
-        !!sym(outlier_col) := sample(.data[[outlier_col]])
+        DownOutlier = sample(DownOutlier),
+        UpOutlier = sample(UpOutlier)
       ) %>%
-      group_by(PercentChangeBin) %>%
-      dplyr::count(!!sym(outlier_col))
+      dplyr::group_by(PercentChangeBin)
 
-    permuted_log_or[[iter_idx]] <- purrr::map_dfr(
+    down_outlier_count <- permuted_data %>%
+      dplyr::count(DownOutlier, name = "n")
+
+    up_outlier_count <- permuted_data %>%
+      dplyr::count(UpOutlier, name = "n")
+
+    down_enrichment <- purrr::map_dfr(
       thresholds,
       function(.x) {
         compute_bin_enrichment(
-          permuted_data,
+          down_outlier_count,
           focal_lower_bound = .x,
           ref_lower_bound = -10,
-          outlier_col = outlier_col
+          outlier_col = "DownOutlier"
         )
       }
     ) %>%
+      mutate(type = "Down")
+
+    up_enrichment <- purrr::map_dfr(
+      thresholds,
+      function(.x) {
+        compute_bin_enrichment(
+          up_outlier_count,
+          focal_lower_bound = .x,
+          ref_lower_bound = -10,
+          outlier_col = "UpOutlier"
+        )
+      }
+    ) %>%
+      mutate(type = "Up")
+
+    permuted_log_or[[iter_idx]] <- bind_rows(down_enrichment, up_enrichment) %>%
       mutate(
-        permutation = iter_idx,
-        type = type_label
+        permutation = iter_idx
       )
 
     if (iter_idx %% report_every == 0 || iter_idx == n_perm) {
@@ -101,8 +122,7 @@ run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm, type_
         (elapsed_seconds / iter_idx) * (n_perm - iter_idx)
       }
       message(sprintf(
-        "[%s] permutation %d/%d (%.1f%%) complete; elapsed=%0.1fs; eta=%0.1fs",
-        type_label,
+        "[AllCalls] permutation %d/%d (%.1f%%) complete; elapsed=%0.1fs; eta=%0.1fs",
         iter_idx,
         n_perm,
         (iter_idx / n_perm) * 100,
