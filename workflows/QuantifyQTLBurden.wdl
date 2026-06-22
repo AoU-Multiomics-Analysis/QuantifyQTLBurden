@@ -234,6 +234,7 @@ workflow qtl_burden_workflow {
     File? QTLGeneBurdenQC_TailZ = CleanBurdenData.QTLGeneBurdenQC_TailZ
     File? QTLGeneBurdenQC_DominantVariantFraction = CleanBurdenData.QTLGeneBurdenQC_DominantVariantFraction
     File? QTLGeneBurdenQC_ReasonCounts = CleanBurdenData.QTLGeneBurdenQC_ReasonCounts
+    File? QTLGeneBurdenQC_GeneSetMedianImpact = CleanBurdenData.QTLGeneBurdenQC_GeneSetMedianImpact
     File? QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
     File? QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
     File? QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet

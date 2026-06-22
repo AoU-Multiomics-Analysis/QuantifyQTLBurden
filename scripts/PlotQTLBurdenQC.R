@@ -13,6 +13,8 @@ safe_ratio <- function(numerator, denominator) {
 
 option_list <- list(
   make_option(c("--QCFile"), type = "character", default = NULL, help = "Gene QC table (QTLGeneBurdenQC.tsv.gz)"),
+  make_option(c("--MedianGenesPerBinByGeneSet"), type = "character", default = NULL,
+              help = "Per-bin median gene counts for different removed gene-set scenarios"),
   make_option(c("--MissingnessWarnThreshold"), type = "double", default = 0.05,
               help = "Warn threshold for missingness fraction"),
   make_option(c("--MissingnessFailThreshold"), type = "double", default = 0.10,
@@ -202,6 +204,53 @@ if (nrow(reason_counts) > 0) {
   pdf(out("ReasonCounts.pdf"), width = 8, height = 4)
   plot.new()
   text(0.5, 0.5, "No fail/warn reasons present", cex = 1.4)
+  dev.off()
+}
+
+if (!is.null(opt$MedianGenesPerBinByGeneSet)) {
+  message("Generating gene-set removal impact plot: ", opt$MedianGenesPerBinByGeneSet)
+
+  median_genes_by_set <- fread(opt$MedianGenesPerBinByGeneSet) %>%
+    as_tibble()
+
+  required_median_cols <- c(
+    "PercentChangeBin", "gene_type", "median_genes", "q25_genes", "q75_genes",
+    "median_abs_z", "GeneCategory", "n_removed_genes"
+  )
+  missing_median_cols <- setdiff(required_median_cols, names(median_genes_by_set))
+  if (length(missing_median_cols) > 0) {
+    stop("Median genes-by-gene-set file is missing required columns: ", paste(missing_median_cols, collapse = ", "))
+  }
+
+  median_genes_by_set <- median_genes_by_set %>%
+    mutate(
+      PercentChangeBin = factor(PercentChangeBin, levels = unique(PercentChangeBin)),
+      gene_type = replace_na(as.character(gene_type), "unknown"),
+      GeneCategory = replace_na(as.character(GeneCategory), "Other"),
+      GeneCategory = factor(GeneCategory, levels = c("All", "CausalCodingVariantGenesRemoved", "DominantVariantGenesRemoved"))
+    )
+
+  g_median_genes_by_set <- ggplot(median_genes_by_set, aes(x = PercentChangeBin, y = median_genes, color = GeneCategory, group = GeneCategory)) +
+    geom_line(size = 1) +
+    geom_point(size = 2) +
+    geom_ribbon(aes(ymin = q25_genes, ymax = q75_genes, fill = GeneCategory), alpha = 0.15, color = NA, inherit.aes = FALSE) +
+    facet_wrap(~gene_type, scales = "free_y") +
+    labs(
+      x = "Percent-change bin",
+      y = "Median # genes per individual (within bin)",
+      color = "Removed gene set",
+      fill = "Removed gene set",
+      title = "Effect of removing gene sets on median gene burden by bin",
+      subtitle = "Gene categories = how many genes removed and median burden within each bin"
+    ) +
+    theme_burden() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  ggsave(out("GeneSetMedianImpact.pdf"), plot = g_median_genes_by_set, width = 12, height = 7)
+} else {
+  pdf(out("GeneSetMedianImpact.pdf"), width = 8, height = 4)
+  plot.new()
+  text(0.5, 0.5, "Median genes by gene set file not supplied", cex = 1.4)
   dev.off()
 }
 

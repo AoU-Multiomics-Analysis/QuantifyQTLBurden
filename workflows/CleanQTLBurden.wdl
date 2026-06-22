@@ -24,6 +24,7 @@ task CleanBurdenData {
     if [ -f /tmp/PlotQTLBurdenQC.R ]; then
       Rscript /tmp/PlotQTLBurdenQC.R \
         --QCFile QTLGeneBurdenQC.tsv.gz \
+        --MedianGenesPerBinByGeneSet QTLBurdenMedianGenesPerBinByGeneSet.tsv \
         --Prefix QTLGeneBurdenQC
     else
       echo "PlotQTLBurdenQC.R not found in /tmp; creating placeholder outputs."
@@ -34,6 +35,7 @@ task CleanBurdenData {
       touch QTLGeneBurdenQC_TailZ.pdf
       touch QTLGeneBurdenQC_DominantVariantFraction.pdf
       touch QTLGeneBurdenQC_ReasonCounts.pdf
+      touch QTLGeneBurdenQC_GeneSetMedianImpact.pdf
     fi
 
     >>>
@@ -57,6 +59,7 @@ task CleanBurdenData {
         File QTLGeneBurdenQC_TailZ = "QTLGeneBurdenQC_TailZ.pdf"
         File QTLGeneBurdenQC_DominantVariantFraction = "QTLGeneBurdenQC_DominantVariantFraction.pdf"
         File QTLGeneBurdenQC_ReasonCounts = "QTLGeneBurdenQC_ReasonCounts.pdf"
+        File QTLGeneBurdenQC_GeneSetMedianImpact = "QTLGeneBurdenQC_GeneSetMedianImpact.pdf"
         File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv"
         File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
         File QTLBurdenMedianGenesPerBinByGeneSet = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
@@ -97,6 +100,7 @@ workflow CleanQTLBurden {
         File QTLGeneBurdenQC_TailZ = CleanBurdenData.QTLGeneBurdenQC_TailZ
         File QTLGeneBurdenQC_DominantVariantFraction = CleanBurdenData.QTLGeneBurdenQC_DominantVariantFraction
         File QTLGeneBurdenQC_ReasonCounts = CleanBurdenData.QTLGeneBurdenQC_ReasonCounts
+        File QTLGeneBurdenQC_GeneSetMedianImpact = CleanBurdenData.QTLGeneBurdenQC_GeneSetMedianImpact
         File QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
         File QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
         File QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet
