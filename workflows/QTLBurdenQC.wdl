@@ -40,8 +40,8 @@ task ComputeQTLBurdenQC {
   }
 
   output {
-    File QTLGeneBurdenQC = "QTLGeneBurdenQC.tsv.gz"
-    File QTLGeneBurdenStatusList = "QTLGeneBurdenStatusList.tsv.gz"
+    File qtl_gene_burden_qc = "QTLGeneBurdenQC.tsv.gz"
+    File qtl_gene_burden_status_list = "QTLGeneBurdenStatusList.tsv.gz"
   }
 }
 
@@ -65,8 +65,8 @@ task ComputeQTLBurdenOutlierEnrichment {
   }
 
   output {
-    File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv"
-    File QTLBurdenOutlierEnrichmentPermutation = "QTLBurdenOutlierEnrichmentPermutation.tsv"
+    File qtl_burden_outlier_enrichment = "QTLBurdenOutlierEnrichment.tsv"
+    File qtl_burden_outlier_enrichment_permutation = "QTLBurdenOutlierEnrichmentPermutation.tsv"
   }
 }
 
@@ -92,10 +92,10 @@ task ComputeQTLBurdenMedianGenesPerBin {
   }
 
   output {
-    File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
-    File QTLBurdenMedianGenesPerBinByGeneSet = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
-    File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = "QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv"
-    File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = "QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin = "QTLBurdenMedianGenesPerBin.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
+    File qtl_burden_median_genes_per_bin_dosage = "QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set_dosage = "QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv"
   }
 }
 
@@ -133,92 +133,88 @@ task PlotQTLBurdenQC {
   }
 
   output {
-    File QTLGeneBurdenQC_StatusByGeneType = "~{QCPlotPrefix}_StatusByGeneType.pdf"
-    File QTLGeneBurdenQC_StatusOverall = "~{QCPlotPrefix}_StatusOverall.pdf"
-    File QTLGeneBurdenQC_Missingness = "~{QCPlotPrefix}_Missingness.pdf"
-    File QTLGeneBurdenQC_VarianceRatio = "~{QCPlotPrefix}_VarianceRatio.pdf"
-    File QTLGeneBurdenQC_TailZ = "~{QCPlotPrefix}_TailZ.pdf"
-    File QTLGeneBurdenQC_DominantVariantFraction = "~{QCPlotPrefix}_DominantVariantFraction.pdf"
-    File QTLGeneBurdenQC_ReasonCounts = "~{QCPlotPrefix}_ReasonCounts.pdf"
-    File QTLGeneBurdenQC_GeneSetMedianImpact = "~{QCPlotPrefix}_GeneSetMedianImpact.pdf"
+    File qc_plot_status_by_gene_type = "~{QCPlotPrefix}_StatusByGeneType.pdf"
+    File qc_plot_status_overall = "~{QCPlotPrefix}_StatusOverall.pdf"
+    File qc_plot_missingness = "~{QCPlotPrefix}_Missingness.pdf"
+    File qc_plot_variance_ratio = "~{QCPlotPrefix}_VarianceRatio.pdf"
+    File qc_plot_tail_z = "~{QCPlotPrefix}_TailZ.pdf"
+    File qc_plot_dominant_variant_fraction = "~{QCPlotPrefix}_DominantVariantFraction.pdf"
+    File qc_plot_reason_counts = "~{QCPlotPrefix}_ReasonCounts.pdf"
+    File qc_plot_gene_set_median_impact = "~{QCPlotPrefix}_GeneSetMedianImpact.pdf"
   }
 }
 
 workflow QTLBurdenQC {
   input {
-    File CleanedQTLBurden
-    File aFCWeights
-    String QCPlotPrefix = "QTLGeneBurdenQC"
-    Int OutlierPermutationIterations = 200
-    Float MissingnessFailThreshold = 0.10
-    Float MissingnessWarnThreshold = 0.05
-    Float ContextMissingnessFailThreshold = 0.05
-    Float VarianceRatioLower = 0.20
-    Float VarianceRatioUpper = 5
-    Float VarianceRatioWarnLower = 0.35
-    Float VarianceRatioWarnUpper = 3
-    Float TailZFailThreshold = 25
-    Float TailZWarnThreshold = 15
-    Float DominantVariantWarnThreshold = 0.98
-    File? QTLBurdenCounts
-    File? QTLBurdenPerSampleGene
+    File input_cleaned_qtl_burden
+    File input_aFC_weights
+    Int input_outlier_permutation_iterations = 200
+    Float input_missingness_fail_threshold = 0.10
+    Float input_missingness_warn_threshold = 0.05
+    Float input_context_missingness_fail_threshold = 0.05
+    Float input_variance_ratio_lower = 0.20
+    Float input_variance_ratio_upper = 5
+    Float input_variance_ratio_warn_lower = 0.35
+    Float input_variance_ratio_warn_upper = 3
+    Float input_tail_z_fail_threshold = 25
+    Float input_tail_z_warn_threshold = 15
+    Float input_dominant_variant_warn_threshold = 0.98
+    String input_qc_plot_prefix = "QTLGeneBurdenQC"
   }
 
     call ComputeQTLBurdenOutlierEnrichment {
       input:
-        CleanedQTLBurden = CleanedQTLBurden,
-        OutlierPermutationIterations = OutlierPermutationIterations
+        CleanedQTLBurden = input_cleaned_qtl_burden,
+        OutlierPermutationIterations = input_outlier_permutation_iterations
     }
 
     call ComputeQTLBurdenMedianGenesPerBin {
       input:
-        CleanedQTLBurden = CleanedQTLBurden,
-        aFC = aFCWeights,
-        DominantVariantWarnThreshold = DominantVariantWarnThreshold
+        CleanedQTLBurden = input_cleaned_qtl_burden,
+        aFC = input_aFC_weights,
+        DominantVariantWarnThreshold = input_dominant_variant_warn_threshold
     }
 
     call ComputeQTLBurdenQC {
       input:
-        CleanedQTLBurden = CleanedQTLBurden,
-        aFC = aFCWeights,
-        MissingnessFailThreshold = MissingnessFailThreshold,
-        MissingnessWarnThreshold = MissingnessWarnThreshold,
-        ContextMissingnessFailThreshold = ContextMissingnessFailThreshold,
-        VarianceRatioLower = VarianceRatioLower,
-        VarianceRatioUpper = VarianceRatioUpper,
-        VarianceRatioWarnLower = VarianceRatioWarnLower,
-        VarianceRatioWarnUpper = VarianceRatioWarnUpper,
-        TailZFailThreshold = TailZFailThreshold,
-        TailZWarnThreshold = TailZWarnThreshold,
-        DominantVariantWarnThreshold = DominantVariantWarnThreshold
+        CleanedQTLBurden = input_cleaned_qtl_burden,
+        aFC = input_aFC_weights,
+        MissingnessFailThreshold = input_missingness_fail_threshold,
+        MissingnessWarnThreshold = input_missingness_warn_threshold,
+        ContextMissingnessFailThreshold = input_context_missingness_fail_threshold,
+        VarianceRatioLower = input_variance_ratio_lower,
+        VarianceRatioUpper = input_variance_ratio_upper,
+        VarianceRatioWarnLower = input_variance_ratio_warn_lower,
+        VarianceRatioWarnUpper = input_variance_ratio_warn_upper,
+        TailZFailThreshold = input_tail_z_fail_threshold,
+        TailZWarnThreshold = input_tail_z_warn_threshold,
+        DominantVariantWarnThreshold = input_dominant_variant_warn_threshold
     }
 
   call PlotQTLBurdenQC {
     input:
-      QTLGeneBurdenQC = ComputeQTLBurdenQC.QTLGeneBurdenQC,
-      QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinByGeneSet,
-      QCPlotPrefix = QCPlotPrefix
+      QTLGeneBurdenQC = ComputeQTLBurdenQC.qtl_gene_burden_qc,
+      QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set,
+      QCPlotPrefix = input_qc_plot_prefix
   }
 
   output {
-    File CleanedBurden = CleanedQTLBurden
-    File? QTLBurdenCounts = QTLBurdenCounts
-    File QTLGeneBurdenQC = ComputeQTLBurdenQC.QTLGeneBurdenQC
-    File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.QTLGeneBurdenStatusList
-    File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichment
-    File QTLBurdenMedianGenesPerBin = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBin 
-    File QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinByGeneSet
-    File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
-    File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
-    File QTLBurdenOutlierEnrichmentPermutation = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichmentPermutation
-    File? QTLBurdenPerSampleGene = QTLBurdenPerSampleGene
-    File QTLGeneBurdenQC_StatusByGeneType = PlotQTLBurdenQC.QTLGeneBurdenQC_StatusByGeneType
-    File QTLGeneBurdenQC_StatusOverall = PlotQTLBurdenQC.QTLGeneBurdenQC_StatusOverall
-    File QTLGeneBurdenQC_Missingness = PlotQTLBurdenQC.QTLGeneBurdenQC_Missingness
-    File QTLGeneBurdenQC_VarianceRatio = PlotQTLBurdenQC.QTLGeneBurdenQC_VarianceRatio
-    File QTLGeneBurdenQC_TailZ = PlotQTLBurdenQC.QTLGeneBurdenQC_TailZ
-    File QTLGeneBurdenQC_DominantVariantFraction = PlotQTLBurdenQC.QTLGeneBurdenQC_DominantVariantFraction
-    File QTLGeneBurdenQC_ReasonCounts = PlotQTLBurdenQC.QTLGeneBurdenQC_ReasonCounts
-    File QTLGeneBurdenQC_GeneSetMedianImpact = PlotQTLBurdenQC.QTLGeneBurdenQC_GeneSetMedianImpact
+    File CleanedBurden = input_cleaned_qtl_burden
+    File QTLGeneBurdenQC = ComputeQTLBurdenQC.qtl_gene_burden_qc
+    File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.qtl_gene_burden_status_list
+    File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.qtl_burden_outlier_enrichment
+    File QTLBurdenMedianGenesPerBin = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin
+    File QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set
+    File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_dosage
+    File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_dosage
+    File QTLBurdenOutlierEnrichmentPermutation = ComputeQTLBurdenOutlierEnrichment.qtl_burden_outlier_enrichment_permutation
+    File QTLGeneBurdenQC_StatusByGeneType = PlotQTLBurdenQC.qc_plot_status_by_gene_type
+    File QTLGeneBurdenQC_StatusOverall = PlotQTLBurdenQC.qc_plot_status_overall
+    File QTLGeneBurdenQC_Missingness = PlotQTLBurdenQC.qc_plot_missingness
+    File QTLGeneBurdenQC_VarianceRatio = PlotQTLBurdenQC.qc_plot_variance_ratio
+    File QTLGeneBurdenQC_TailZ = PlotQTLBurdenQC.qc_plot_tail_z
+    File QTLGeneBurdenQC_DominantVariantFraction = PlotQTLBurdenQC.qc_plot_dominant_variant_fraction
+    File QTLGeneBurdenQC_ReasonCounts = PlotQTLBurdenQC.qc_plot_reason_counts
+    File QTLGeneBurdenQC_GeneSetMedianImpact = PlotQTLBurdenQC.qc_plot_gene_set_median_impact
   }
 }

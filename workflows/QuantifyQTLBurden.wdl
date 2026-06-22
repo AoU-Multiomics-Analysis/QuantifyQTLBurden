@@ -62,22 +62,20 @@ import "CleanQTLBurden.wdl" as clean
 
     call qctools.QTLBurdenQC as QTLBurdenQC {
       input:
-        CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
-        aFCWeights = aFCWeights,
-        QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts,
-        QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene,
-        OutlierPermutationIterations = OutlierPermutationIterations,
-        MissingnessFailThreshold = MissingnessFailThreshold,
-        MissingnessWarnThreshold = MissingnessWarnThreshold,
-        ContextMissingnessFailThreshold = ContextMissingnessFailThreshold,
-        VarianceRatioLower = VarianceRatioLower,
-        VarianceRatioUpper = VarianceRatioUpper,
-        VarianceRatioWarnLower = VarianceRatioWarnLower,
-        VarianceRatioWarnUpper = VarianceRatioWarnUpper,
-        TailZFailThreshold = TailZFailThreshold,
-        TailZWarnThreshold = TailZWarnThreshold,
-        DominantVariantWarnThreshold = DominantVariantWarnThreshold,
-        QCPlotPrefix = "QTLGeneBurdenQC"
+        input_cleaned_qtl_burden = CleanBurdenData.QTLBurdenSummaryCleaned,
+        input_aFC_weights = aFCWeights,
+        input_outlier_permutation_iterations = OutlierPermutationIterations,
+        input_missingness_fail_threshold = MissingnessFailThreshold,
+        input_missingness_warn_threshold = MissingnessWarnThreshold,
+        input_context_missingness_fail_threshold = ContextMissingnessFailThreshold,
+        input_variance_ratio_lower = VarianceRatioLower,
+        input_variance_ratio_upper = VarianceRatioUpper,
+        input_variance_ratio_warn_lower = VarianceRatioWarnLower,
+        input_variance_ratio_warn_upper = VarianceRatioWarnUpper,
+        input_tail_z_fail_threshold = TailZFailThreshold,
+        input_tail_z_warn_threshold = TailZWarnThreshold,
+        input_dominant_variant_warn_threshold = DominantVariantWarnThreshold,
+        input_qc_plot_prefix = "QTLGeneBurdenQC"
     }
   }
 
@@ -88,7 +86,7 @@ import "CleanQTLBurden.wdl" as clean
       QuantifyCoreBurden.AggregatedQTLBurden
     ])
     File? CleanedBurden = QTLBurdenQC.CleanedBurden
-    File? QTLBurdenCounts = QTLBurdenQC.QTLBurdenCounts
+    File? QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
     File? QTLGeneBurdenQC = QTLBurdenQC.QTLGeneBurdenQC
     File? QTLGeneBurdenStatusList = QTLBurdenQC.QTLGeneBurdenStatusList
     File? QTLGeneBurdenQC_StatusByGeneType = QTLBurdenQC.QTLGeneBurdenQC_StatusByGeneType
@@ -105,7 +103,7 @@ import "CleanQTLBurden.wdl" as clean
     File? QTLBurdenMedianGenesPerBinDosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
     File? QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
     File? QTLBurdenOutlierEnrichmentPermutation = QTLBurdenQC.QTLBurdenOutlierEnrichmentPermutation
-    File? QTLBurdenPerSampleGene = QTLBurdenQC.QTLBurdenPerSampleGene
+    File? QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
 
   }
 }
