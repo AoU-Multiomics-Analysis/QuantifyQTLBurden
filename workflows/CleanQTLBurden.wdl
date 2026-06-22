@@ -37,3 +37,34 @@ task CleanBurdenData {
         File QTLBurdenPerSampleGene = "QTLBurdenPerSampleGene.parquet"
     }
 }
+
+workflow CleanQTLBurdenTask {
+  input {
+    File MergedQTLBurden
+    File AlleleFrequencies
+    File ExpressionZscores
+    File aFC
+    File AncestryAssignments
+    File eQTLSusie
+    File GTF
+    Float BurdenTailProbability = 0.9
+  }
+
+  call CleanBurdenData {
+    input:
+      MergedQTLBurden = MergedQTLBurden,
+      AlleleFrequencies = AlleleFrequencies,
+      ExpressionZscores = ExpressionZscores,
+      aFC = aFC,
+      AncestryAssignments = AncestryAssignments,
+      eQTLSusie = eQTLSusie,
+      GTF = GTF,
+      BurdenTailProbability = BurdenTailProbability
+  }
+
+  output {
+    File QTLBurdenSummaryCleaned = CleanBurdenData.QTLBurdenSummaryCleaned
+    File QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
+    File QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
+  }
+}
