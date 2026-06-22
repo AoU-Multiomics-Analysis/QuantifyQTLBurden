@@ -230,10 +230,10 @@ if (!is.null(opt$MedianGenesPerBinByGeneSet)) {
       GeneCategory = factor(GeneCategory, levels = c("All", "CausalCodingVariantGenesRemoved", "DominantVariantGenesRemoved"))
     )
 
-  g_median_genes_by_set <- ggplot(median_genes_by_set, aes(x = PercentChangeBin, y = median_genes, color = GeneCategory, group = GeneCategory)) +
+g_median_genes_by_set <- ggplot(median_genes_by_set, aes(x = PercentChangeBin, y = median_genes, color = GeneCategory, group = GeneCategory)) +
     geom_line(size = 1) +
     geom_point(size = 2) +
-    geom_ribbon(aes(ymin = q25_genes, ymax = q75_genes, fill = GeneCategory), alpha = 0.15, color = NA, inherit.aes = FALSE) +
+    geom_ribbon(aes(ymin = q25_genes, ymax = q75_genes, fill = GeneCategory), alpha = 0.15, color = NA) +
     facet_wrap(~gene_type, scales = "free_y") +
     labs(
       x = "Percent-change bin",

@@ -278,6 +278,13 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
     median_abs_centered_z_population = median(abs(CenteredEffectZPopulation), na.rm = TRUE),
     max_abs_centered_z_empirical_population = safe_max_abs(CenteredEffectZEmpiricalPopulation),
     median_abs_centered_z_empirical_population = median(abs(CenteredEffectZEmpiricalPopulation), na.rm = TRUE),
+    fraction_samples_without_context = mean(
+      is.na(CenteredEffectZPopulation) |
+        is.na(CenteredEffectZEmpiricalPopulation) |
+        is.na(GeneVariance_Population) |
+        is.na(EmpiricalVariance_Population),
+      na.rm = TRUE
+    ),
     median_variance_ratio = median(safe_ratio(EmpiricalVariance_Population, GeneVariance_Population), na.rm = TRUE),
     max_variance_ratio = safe_max(safe_ratio(EmpiricalVariance_Population, GeneVariance_Population)),
     max_abs_observed_z = safe_max_abs(ObservedZ),
@@ -290,13 +297,7 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
   mutate(
     qc_flag_missingness_fail = fraction_samples_with_missing_genotype > MissingnessFailThreshold,
     qc_flag_missingness_warn = fraction_samples_with_missing_genotype > MissingnessWarnThreshold,
-    qc_flag_context_fail = mean(
-      is.na(CenteredEffectZPopulation) |
-        is.na(CenteredEffectZEmpiricalPopulation) |
-        is.na(GeneVariance_Population) |
-        is.na(EmpiricalVariance_Population),
-      na.rm = TRUE
-    ) > ContextMissingnessFailThreshold,
+    qc_flag_context_fail = fraction_samples_without_context > ContextMissingnessFailThreshold,
     qc_flag_variance_fail = is.na(median_variance_ratio) |
       (median_variance_ratio < VarianceRatioLower) |
       (median_variance_ratio > VarianceRatioUpper),
