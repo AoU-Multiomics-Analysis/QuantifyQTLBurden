@@ -262,15 +262,10 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
     n_samples = n_distinct(sample),
     n_samples_nonzero_burden = n_distinct(sample[!is.na(predicted_effect) & predicted_effect != 0]),
     fraction_samples_nonzero_burden = n_samples_nonzero_burden / n_samples,
+    n_samples_with_noisy_burden_calls = n_distinct(sample[is_noisy_extreme_call %in% TRUE]),
+    fraction_samples_with_noisy_burden_calls = n_samples_with_noisy_burden_calls / n_samples,
     n_samples_with_missing_genotype = n_distinct(sample[has_missing_genotype %in% TRUE]),
     fraction_samples_with_missing_genotype = n_samples_with_missing_genotype / n_samples,
-    n_samples_without_context = n_distinct(sample[
-      is.na(CenteredEffectZPopulation) |
-      is.na(CenteredEffectZEmpiricalPopulation) |
-      is.na(GeneVariance_Population) |
-      is.na(EmpiricalVariance_Population)
-    ]),
-    fraction_samples_without_context = n_samples_without_context / n_samples,
     max_missing_genotypes = safe_max(n_missing_genotypes),
     mean_missing_genotypes = mean(n_missing_genotypes, na.rm = TRUE),
     max_abs_predicted_effect = safe_max_abs(predicted_effect),
@@ -295,7 +290,13 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
   mutate(
     qc_flag_missingness_fail = fraction_samples_with_missing_genotype > MissingnessFailThreshold,
     qc_flag_missingness_warn = fraction_samples_with_missing_genotype > MissingnessWarnThreshold,
-    qc_flag_context_fail = fraction_samples_without_context > ContextMissingnessFailThreshold,
+    qc_flag_context_fail = mean(
+      is.na(CenteredEffectZPopulation) |
+        is.na(CenteredEffectZEmpiricalPopulation) |
+        is.na(GeneVariance_Population) |
+        is.na(EmpiricalVariance_Population),
+      na.rm = TRUE
+    ) > ContextMissingnessFailThreshold,
     qc_flag_variance_fail = is.na(median_variance_ratio) |
       (median_variance_ratio < VarianceRatioLower) |
       (median_variance_ratio > VarianceRatioUpper),
