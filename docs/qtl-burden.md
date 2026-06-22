@@ -108,6 +108,7 @@ When `AnnotateBurden = true`, the workflow can also emit:
 | `QTLBurdenSummary.cleaned.tsv.gz` | Annotated burden table. |
 | `QTLGeneBurdenCounts.tsv.gz` | Gene-level summary of large predicted burden events. |
 | `QTLGeneBurdenQC.tsv.gz` | Gene-level QC table. |
+| `QTLGeneBurdenStatusList.tsv.gz` | Gene-level QC status list (`PASS`/`WARN`/`FAIL`) and reasons. |
 | `QTLBurdenMedianGenesPerBin.tsv` | Median genes per individual in each percent-change bin. |
 | `QTLBurdenOutlierEnrichment.tsv` | Observed expression outlier enrichment by burden bin. |
 

@@ -17,6 +17,15 @@ safe_max_abs <- function(x) {
   max(abs(x), na.rm = TRUE)
 }
 
+safe_ratio <- function(numerator, denominator) {
+  numerator <- as.numeric(numerator)
+  denominator <- as.numeric(denominator)
+  out <- rep(NA_real_, length(numerator))
+  valid <- is.finite(numerator) & is.finite(denominator) & denominator != 0
+  out[valid] <- numerator[valid] / denominator[valid]
+  out
+}
+
 ####### PARSE ARGUMENTS #########
 option_list <- list(
     optparse::make_option(c("--QTLBurden"), type = "character", default = NULL,
@@ -32,7 +41,27 @@ option_list <- list(
     optparse::make_option(c("--GTF"), type = "character", default = NULL,
                           help = "GTF file used to get annotate types of genes"),
     optparse::make_option(c("--eQTLSusie"), type = "character", default = NULL,
-                          help = "Susie file containing variant annotations")
+                          help = "Susie file containing variant annotations"),
+    optparse::make_option(c("--MissingnessFailThreshold"), type = "double", default = 0.10,
+                          help = "Fail genes if > this fraction of samples per gene have missing genotypes"),
+    optparse::make_option(c("--MissingnessWarnThreshold"), type = "double", default = 0.05,
+                          help = "Warn when fraction of samples with missing genotypes is above this value"),
+    optparse::make_option(c("--ContextMissingnessFailThreshold"), type = "double", default = 0.05,
+                          help = "Fail when allele-frequency/ancestry context is missing above this fraction"),
+    optparse::make_option(c("--VarianceRatioLower"), type = "double", default = 0.20,
+                          help = "Fail if empirical/population variance ratio is below this value"),
+    optparse::make_option(c("--VarianceRatioUpper"), type = "double", default = 5,
+                          help = "Fail if empirical/population variance ratio is above this value"),
+    optparse::make_option(c("--VarianceRatioWarnLower"), type = "double", default = 0.35,
+                          help = "Warn if empirical/population variance ratio is below this value"),
+    optparse::make_option(c("--VarianceRatioWarnUpper"), type = "double", default = 3,
+                          help = "Warn if empirical/population variance ratio is above this value"),
+    optparse::make_option(c("--TailZFailThreshold"), type = "double", default = 25,
+                          help = "Fail genes with extreme max |CenteredEffectZPopulation| above this value"),
+    optparse::make_option(c("--TailZWarnThreshold"), type = "double", default = 15,
+                          help = "Warn when max |CenteredEffectZPopulation| is above this value"),
+    optparse::make_option(c("--DominantVariantWarnThreshold"), type = "double", default = 0.98,
+                          help = "Warn when a single variant explains more than this fraction of abs burden")
 )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
@@ -44,6 +73,16 @@ PathAlleleFrequencies <- opt$AlleleFrequencies
 BurdenPath <- opt$QTLBurden
 GTFPath <- opt$GTF
 SusiePath <- opt$eQTLSusie
+MissingnessFailThreshold <- opt$MissingnessFailThreshold
+MissingnessWarnThreshold <- opt$MissingnessWarnThreshold
+ContextMissingnessFailThreshold <- opt$ContextMissingnessFailThreshold
+VarianceRatioLower <- opt$VarianceRatioLower
+VarianceRatioUpper <- opt$VarianceRatioUpper
+VarianceRatioWarnLower <- opt$VarianceRatioWarnLower
+VarianceRatioWarnUpper <- opt$VarianceRatioWarnUpper
+TailZFailThreshold <- opt$TailZFailThreshold
+TailZWarnThreshold <- opt$TailZWarnThreshold
+DominantVariantWarnThreshold <- opt$DominantVariantWarnThreshold
 
 ####### LOAD DATA ###############
 message('Loading GTF')
@@ -193,6 +232,13 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
     fraction_samples_nonzero_burden = n_samples_nonzero_burden / n_samples,
     n_samples_with_missing_genotype = n_distinct(sample[has_missing_genotype %in% TRUE]),
     fraction_samples_with_missing_genotype = n_samples_with_missing_genotype / n_samples,
+    n_samples_without_context = n_distinct(sample[
+      is.na(CenteredEffectZPopulation) |
+      is.na(CenteredEffectZEmpiricalPopulation) |
+      is.na(GeneVariance_Population) |
+      is.na(EmpiricalVariance_Population)
+    ]),
+    fraction_samples_without_context = n_samples_without_context / n_samples,
     max_missing_genotypes = safe_max(n_missing_genotypes),
     mean_missing_genotypes = mean(n_missing_genotypes, na.rm = TRUE),
     max_abs_predicted_effect = safe_max_abs(predicted_effect),
@@ -203,15 +249,87 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
     median_abs_centered_effect = median(abs(CenteredEffectPopulation), na.rm = TRUE),
     max_abs_centered_z_population = safe_max_abs(CenteredEffectZPopulation),
     median_abs_centered_z_population = median(abs(CenteredEffectZPopulation), na.rm = TRUE),
+    max_abs_centered_z_empirical_population = safe_max_abs(CenteredEffectZEmpiricalPopulation),
+    median_abs_centered_z_empirical_population = median(abs(CenteredEffectZEmpiricalPopulation), na.rm = TRUE),
+    median_variance_ratio = median(safe_ratio(EmpiricalVariance_Population, GeneVariance_Population), na.rm = TRUE),
+    max_variance_ratio = safe_max(safe_ratio(EmpiricalVariance_Population, GeneVariance_Population)),
     max_abs_observed_z = safe_max_abs(ObservedZ),
     median_abs_observed_z = median(abs(ObservedZ), na.rm = TRUE),
     n_up_expression_outliers = sum(UpOutlier, na.rm = TRUE),
     n_down_expression_outliers = sum(DownOutlier, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  left_join(aFCGeneQC, by = "pid")
+  left_join(aFCGeneQC, by = "pid") %>%
+  mutate(
+    qc_flag_missingness_fail = fraction_samples_with_missing_genotype > MissingnessFailThreshold,
+    qc_flag_missingness_warn = fraction_samples_with_missing_genotype > MissingnessWarnThreshold,
+    qc_flag_context_fail = fraction_samples_without_context > ContextMissingnessFailThreshold,
+    qc_flag_variance_fail = is.na(median_variance_ratio) |
+      (median_variance_ratio < VarianceRatioLower) |
+      (median_variance_ratio > VarianceRatioUpper),
+    qc_flag_variance_warn = !is.na(median_variance_ratio) &
+      ((median_variance_ratio >= VarianceRatioLower & median_variance_ratio < VarianceRatioWarnLower) |
+       (median_variance_ratio > VarianceRatioWarnUpper & median_variance_ratio <= VarianceRatioUpper)),
+    qc_flag_tail_fail = !is.na(max_abs_centered_z_population) & (max_abs_centered_z_population > TailZFailThreshold),
+    qc_flag_tail_warn = !is.na(max_abs_centered_z_population) & (max_abs_centered_z_population > TailZWarnThreshold) & !qc_flag_tail_fail,
+    qc_flag_dominant_variant_warn = dominant_variant_fraction_effect >= DominantVariantWarnThreshold,
+    qc_fail_count = qc_flag_missingness_fail + qc_flag_context_fail + qc_flag_variance_fail + qc_flag_tail_fail,
+    qc_warn_count = qc_flag_missingness_warn + qc_flag_variance_warn + qc_flag_tail_warn + qc_flag_dominant_variant_warn,
+    QC_Status = case_when(
+      qc_fail_count > 0 ~ "FAIL",
+      qc_warn_count > 0 ~ "WARN",
+      TRUE ~ "PASS"
+    )
+  ) %>%
+  rowwise() %>%
+  mutate(
+    QC_FailReasons = {
+      reasons <- c(
+        if (qc_flag_missingness_fail) "high_sample_missingness" else NULL,
+        if (qc_flag_context_fail) "missing_allelefreq_or_ancestry_context" else NULL,
+        if (qc_flag_variance_fail) "empirical_vs_population_variance_mismatch" else NULL,
+        if (qc_flag_tail_fail) "extreme_centered_burden_tail" else NULL
+      )
+      if (length(reasons) == 0) NA_character_ else paste(reasons, collapse = ";")
+    },
+    QC_WarnReasons = {
+      reasons <- c(
+        if (qc_flag_missingness_warn) "elevated_sample_missingness" else NULL,
+        if (qc_flag_variance_warn) "marginal_variance_mismatch" else NULL,
+        if (qc_flag_tail_warn) "large_centered_burden_tail" else NULL,
+        if (qc_flag_dominant_variant_warn) "single_variant_dominance" else NULL
+      )
+      if (length(reasons) == 0) NA_character_ else paste(reasons, collapse = ";")
+    }
+  ) %>%
+  ungroup()
 
 QTLGeneBurdenQC %>% write_tsv('QTLGeneBurdenQC.tsv.gz')
+
+QTLGeneBurdenStatusList <- QTLGeneBurdenQC %>%
+  select(
+    pid,
+    gene_id,
+    gene_name,
+    gene_type,
+    CausalCodingVariantPresent,
+    QC_Status,
+    qc_fail_count,
+    qc_warn_count,
+    QC_FailReasons,
+    QC_WarnReasons,
+    fraction_samples_with_missing_genotype,
+    fraction_samples_without_context,
+    median_variance_ratio,
+    max_abs_centered_z_population
+  ) %>%
+  mutate(
+    is_pass = QC_Status == "PASS",
+    is_warn = QC_Status == "WARN",
+    is_fail = QC_Status == "FAIL"
+  )
+
+QTLGeneBurdenStatusList %>% write_tsv('QTLGeneBurdenStatusList.tsv.gz')
 
 
 

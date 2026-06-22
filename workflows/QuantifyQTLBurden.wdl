@@ -226,6 +226,7 @@ workflow qtl_burden_workflow {
     File? CleanedBurden = CleanBurdenData.CleanedBurden
     File? QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
     File? QTLGeneBurdenQC = CleanBurdenData.QTLGeneBurdenQC
+    File? QTLGeneBurdenStatusList = CleanBurdenData.QTLGeneBurdenStatusList
     File? QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
     File? QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
 
