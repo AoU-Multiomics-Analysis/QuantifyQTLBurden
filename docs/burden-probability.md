@@ -32,6 +32,14 @@ L ~ Normal(μ_L, σ_L^2)
 
 If no standard error is available for a variant (`SE_i` missing), `SE_i` is set to `0` for that variant.
 
+`QTLBurden.R` also accepts 95% CI bounds directly:
+
+```text
+SE_i = (log2_aFC_upper - log2_aFC_lower) / (2 * 1.96)
+```
+
+This is applied in `auto` mode when `VariantEffectSEColumn` is not explicitly set and no direct SE column is present.
+
 ## One-sided tail probabilities
 
 The log2 thresholds are:

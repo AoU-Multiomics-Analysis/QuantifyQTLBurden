@@ -412,15 +412,22 @@ KOPassList <- GeneBurdenCounts %>%
     filter(NumKO < 100) %>%
     pull(pid)
 
-QTLBurdenFiltered <- QTLBurdenZscores %>%
+QTLBurdenFiltered_AllCalls <- QTLBurdenZscores %>%
     filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation)) %>%
-    filter(pid %in% KOPassList) %>%
     mutate(
         individual_id = sample,
         gene_id = str_remove(pid, '\\..*')
     ) %>%
     select(-any_of(c("gene_type", "gene_name"))) %>%
     left_join(GeneTypes, by = 'gene_id')
+
+QTLBurdenFiltered_HighKORemoved <- QTLBurdenFiltered_AllCalls %>%
+    filter(pid %in% KOPassList)
+
+QTLBurdenFiltered_HighConfidence <- QTLBurdenFiltered_AllCalls %>%
+    filter(!(is_dosage_extreme_call & is_noisy_extreme_call))
+
+QTLBurdenFiltered <- QTLBurdenFiltered_HighKORemoved
 
 QTLBurdenPerSampleGene <- QTLBurdenFiltered %>%
     select(
@@ -498,35 +505,7 @@ compute_median_genes_per_bin <- function(df, remove_pids = character(0), remove_
     )
 }
 
-# and summarize the range
-MedianGenesPerIndividual <- compute_median_genes_per_bin(
-  df = QTLBurdenPerSampleGene,
-  remove_pids = character(0),
-  remove_noisy_dosage_extremes = FALSE,
-  gene_category = "All"
-)
-
-MedianGenesPerIndividualNoisyFiltered <- compute_median_genes_per_bin(
-  df = QTLBurdenPerSampleGene,
-  remove_pids = character(0),
-  remove_noisy_dosage_extremes = TRUE,
-  gene_category = "All"
-)
-
-MedianGenesPerIndividualCodingVariantGenesRemoved <- compute_median_genes_per_bin(
-  df = QTLBurdenPerSampleGene,
-  remove_pids = CodingVariantGenes,
-  remove_noisy_dosage_extremes = FALSE,
-  gene_category = "CausalCodingVariantGenesRemoved"
-)
-
-MedianGenesPerIndividualCodingVariantGenesRemovedNoisyFiltered <- compute_median_genes_per_bin(
-  df = QTLBurdenPerSampleGene,
-  remove_pids = CodingVariantGenes,
-  remove_noisy_dosage_extremes = TRUE,
-  gene_category = "CausalCodingVariantGenesRemoved"
-)
-
+# genes requiring high-variant-dominance QC are used for both model summaries
 DominantVariantWarnGenes <- aFCGeneQC %>%
   filter(
     !is.na(dominant_variant_fraction_effect),
@@ -534,43 +513,117 @@ DominantVariantWarnGenes <- aFCGeneQC %>%
   ) %>%
   pull(pid)
 
-MedianGenesPerIndividualDominantVariantGenesRemoved <- compute_median_genes_per_bin(
-  df = QTLBurdenPerSampleGene,
-  remove_pids = DominantVariantWarnGenes,
-  remove_noisy_dosage_extremes = FALSE,
-  gene_category = "DominantVariantGenesRemoved"
+write_median_gene_summaries <- function(df, model_label, output_suffix = NULL, write_legacy_outputs = FALSE) {
+  has_suffix <- !is.null(output_suffix) && nchar(output_suffix) > 0
+  base_prefix <- if (has_suffix) {
+    paste0("QTLBurdenMedianGenesPerBin_", output_suffix)
+  } else {
+    "QTLBurdenMedianGenesPerBin"
+  }
+  by_gene_set_prefix <- if (has_suffix) {
+    paste0("QTLBurdenMedianGenesPerBinByGeneSet_", output_suffix)
+  } else {
+    "QTLBurdenMedianGenesPerBinByGeneSet"
+  }
+
+  all_samples <- compute_median_genes_per_bin(
+    df = df,
+    remove_pids = character(0),
+    remove_noisy_dosage_extremes = FALSE,
+    gene_category = "All"
+  )
+
+  all_samples_noisy <- compute_median_genes_per_bin(
+    df = df,
+    remove_pids = character(0),
+    remove_noisy_dosage_extremes = TRUE,
+    gene_category = "All"
+  )
+
+  coding_removed <- compute_median_genes_per_bin(
+    df = df,
+    remove_pids = CodingVariantGenes,
+    remove_noisy_dosage_extremes = FALSE,
+    gene_category = "CausalCodingVariantGenesRemoved"
+  )
+
+  coding_removed_noisy <- compute_median_genes_per_bin(
+    df = df,
+    remove_pids = CodingVariantGenes,
+    remove_noisy_dosage_extremes = TRUE,
+    gene_category = "CausalCodingVariantGenesRemoved"
+  )
+
+  dominant_removed <- compute_median_genes_per_bin(
+    df = df,
+    remove_pids = DominantVariantWarnGenes,
+    remove_noisy_dosage_extremes = FALSE,
+    gene_category = "DominantVariantGenesRemoved"
+  )
+
+  dominant_removed_noisy <- compute_median_genes_per_bin(
+    df = df,
+    remove_pids = DominantVariantWarnGenes,
+    remove_noisy_dosage_extremes = TRUE,
+    gene_category = "DominantVariantGenesRemoved"
+  )
+
+  all_summary <- all_samples %>% mutate(enrichment_model = model_label)
+  all_summary_noisy <- all_samples_noisy %>% mutate(enrichment_model = model_label)
+
+  all_by_gene_set <- bind_rows(
+    all_samples,
+    coding_removed,
+    dominant_removed
+  ) %>%
+    arrange(GeneCategory, gene_type, PercentChangeBin) %>%
+    mutate(enrichment_model = model_label)
+
+  all_by_gene_set_noisy <- bind_rows(
+    all_samples_noisy,
+    coding_removed_noisy,
+    dominant_removed_noisy
+  ) %>%
+    arrange(GeneCategory, gene_type, PercentChangeBin) %>%
+    mutate(enrichment_model = model_label)
+
+  all_summary %>% write_tsv(paste0(base_prefix, ".tsv"))
+  all_summary_noisy %>% write_tsv(paste0(base_prefix, "_DosageNoisyFiltered.tsv"))
+  all_by_gene_set %>% write_tsv(paste0(by_gene_set_prefix, ".tsv"))
+  all_by_gene_set_noisy %>% write_tsv(paste0(by_gene_set_prefix, "_DosageNoisyFiltered.tsv"))
+
+  if (write_legacy_outputs) {
+    all_summary %>%
+      select(-enrichment_model) %>%
+      write_tsv('QTLBurdenMedianGenesPerBin.tsv')
+    all_summary_noisy %>%
+      select(-enrichment_model) %>%
+      write_tsv('QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv')
+    all_by_gene_set %>%
+      select(-enrichment_model) %>%
+      write_tsv('QTLBurdenMedianGenesPerBinByGeneSet.tsv')
+    all_by_gene_set_noisy %>%
+      select(-enrichment_model) %>%
+      write_tsv('QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv')
+  }
+}
+
+write_median_gene_summaries(
+  df = QTLBurdenFiltered_AllCalls,
+  model_label = "AllCalls",
+  output_suffix = "AllCalls"
 )
-
-MedianGenesPerIndividualDominantVariantGenesRemovedNoisyFiltered <- compute_median_genes_per_bin(
-  df = QTLBurdenPerSampleGene,
-  remove_pids = DominantVariantWarnGenes,
-  remove_noisy_dosage_extremes = TRUE,
-  gene_category = "DominantVariantGenesRemoved"
+write_median_gene_summaries(
+  df = QTLBurdenFiltered_HighConfidence,
+  model_label = "HighConfidence",
+  output_suffix = "HighConfidence"
 )
-
-MedianGenesSummary <- MedianGenesPerIndividual
-MedianGenesSummary %>% write_tsv('QTLBurdenMedianGenesPerBin.tsv')
-
-MedianGenesSummaryNoisyFiltered <- MedianGenesPerIndividualNoisyFiltered
-MedianGenesSummaryNoisyFiltered %>% write_tsv('QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv')
-
-MedianGenesByGeneSetSummary <- bind_rows(
-  MedianGenesPerIndividual,
-  MedianGenesPerIndividualCodingVariantGenesRemoved,
-  MedianGenesPerIndividualDominantVariantGenesRemoved
-) %>%
-  arrange(GeneCategory, gene_type, PercentChangeBin)
-
-MedianGenesByGeneSetSummary %>% write_tsv('QTLBurdenMedianGenesPerBinByGeneSet.tsv')
-
-MedianGenesByGeneSetSummaryNoisyFiltered <- bind_rows(
-  MedianGenesPerIndividualNoisyFiltered,
-  MedianGenesPerIndividualCodingVariantGenesRemovedNoisyFiltered,
-  MedianGenesPerIndividualDominantVariantGenesRemovedNoisyFiltered
-) %>%
-  arrange(GeneCategory, gene_type, PercentChangeBin)
-
-MedianGenesByGeneSetSummaryNoisyFiltered %>% write_tsv('QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv')
+write_median_gene_summaries(
+  df = QTLBurdenFiltered_HighKORemoved,
+  model_label = "HighKORemoved",
+  output_suffix = "HighKORemoved",
+  write_legacy_outputs = TRUE
+)
 
 ####### COMPUTE OUTLIER ENRICHMENT PER PERCENT CHANGE BIN ##########
 message('Computing outlier enrichment')
@@ -691,68 +744,91 @@ run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm, type_
   bind_rows(permuted_log_or)
 }
 
-DownOutlierCount <- QTLBurdenFiltered %>% 
-    filter(gene_type == 'protein_coding') %>% 
-    group_by(PercentChangeBin) %>% 
+compute_enrichment_for_model <- function(df, model_label, thresholds) {
+  down_outlier_count <- df %>%
+    filter(gene_type == 'protein_coding') %>%
+    group_by(PercentChangeBin) %>%
     dplyr::count(DownOutlier)
-UpOutlierCount <- QTLBurdenFiltered %>% 
-    filter(gene_type == 'protein_coding') %>% 
-    group_by(PercentChangeBin) %>% 
+
+  up_outlier_count <- df %>%
+    filter(gene_type == 'protein_coding') %>%
+    group_by(PercentChangeBin) %>%
     dplyr::count(UpOutlier)
 
-thresholds <- DownOutlierCount %>%
+  results_down_ref_bin_comparison <- purrr::map_dfr(
+    thresholds,
+    ~ compute_bin_enrichment(
+      down_outlier_count,
+      focal_lower_bound = .x,
+      ref_lower_bound = -10,
+      outlier_col = "DownOutlier"
+    )
+  ) %>%
+    mutate(type = "Down", enrichment_model = model_label)
+
+  results_up_ref_bin_comparison <- purrr::map_dfr(
+    thresholds,
+    ~ compute_bin_enrichment(
+      up_outlier_count,
+      focal_lower_bound = .x,
+      ref_lower_bound = -10,
+      outlier_col = "UpOutlier"
+    )
+  ) %>%
+    mutate(type = "Up", enrichment_model = model_label)
+
+  bind_rows(results_down_ref_bin_comparison, results_up_ref_bin_comparison) %>%
+    filter(focal_lower_bound != -10)
+}
+
+thresholds <- QTLBurdenFiltered_AllCalls %>%
+  filter(gene_type == 'protein_coding') %>%
+  group_by(PercentChangeBin) %>%
+  dplyr::count(DownOutlier) %>%
   mutate(lower = extract_bin_lower_bound(PercentChangeBin)) %>%
   distinct(lower) %>%
   filter(!is.na(lower), lower != 0) %>%
   arrange(lower) %>%
   pull(lower)
 
-results_down_ref_bin_comparison <- purrr::map_dfr(
-  thresholds,
-  ~ compute_bin_enrichment(
-    DownOutlierCount,
-    focal_lower_bound = .x,
-    ref_lower_bound = -10,
-    outlier_col = "DownOutlier"
+OutlierEnrichmentsRefBin <- bind_rows(
+  compute_enrichment_for_model(
+    df = QTLBurdenFiltered_AllCalls,
+    model_label = "AllCalls",
+    thresholds = thresholds
+  ),
+  compute_enrichment_for_model(
+    df = QTLBurdenFiltered_HighConfidence,
+    model_label = "HighConfidence",
+    thresholds = thresholds
+  ),
+  compute_enrichment_for_model(
+    df = QTLBurdenFiltered_HighKORemoved,
+    model_label = "HighKORemoved",
+    thresholds = thresholds
   )
-) %>%
-  mutate(type = "Down")
-
-results_up_ref_bin_comparison <- purrr::map_dfr(
-  thresholds,
-  ~ compute_bin_enrichment(
-    UpOutlierCount,
-    focal_lower_bound = .x,
-    ref_lower_bound = -10,
-    outlier_col = "UpOutlier"
-  )
-) %>%
-  mutate(type = "Up")
-
-OutlierEnrichmentsRefBin <- bind_rows(results_down_ref_bin_comparison, 
-                                      results_up_ref_bin_comparison
-                                     ) %>% 
-                            filter(focal_lower_bound != -10)
+) %>% 
+  arrange(enrichment_model, type, focal_lower_bound)
 
 OutlierEnrichmentsRefBin %>% write_tsv('QTLBurdenOutlierEnrichment.tsv')
 
 if (OutlierPermutationIterations > 0) {
-  message('Computing outlier enrichment permutation null benchmark')
+  message('Computing outlier enrichment permutation null benchmark for AllCalls only.')
 
-  OutlierBenchmarkData <- QTLBurdenFiltered %>%
+  OutlierBenchmarkData_AllCalls <- QTLBurdenFiltered_AllCalls %>%
     filter(gene_type == 'protein_coding') %>%
     select(PercentChangeBin, DownOutlier, UpOutlier)
 
   OutlierPermutationNull <- bind_rows(
     run_permutation_enrichment(
-      benchmark_data = OutlierBenchmarkData,
+      benchmark_data = OutlierBenchmarkData_AllCalls,
       thresholds = thresholds,
       n_perm = OutlierPermutationIterations,
       type_label = "Down",
       outlier_col = "DownOutlier"
     ),
     run_permutation_enrichment(
-      benchmark_data = OutlierBenchmarkData,
+      benchmark_data = OutlierBenchmarkData_AllCalls,
       thresholds = thresholds,
       n_perm = OutlierPermutationIterations,
       type_label = "Up",
@@ -760,8 +836,11 @@ if (OutlierPermutationIterations > 0) {
     )
   )
 
+  OutlierPermutationNull <- OutlierPermutationNull %>%
+    mutate(enrichment_model = "AllCalls")
+
   NullStats <- OutlierPermutationNull %>%
-    group_by(type, focal_lower_bound, reference_lower_bound) %>%
+    group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
     summarize(
       permutation_count = dplyr::n(),
       median_log_odds_ratio = median(log_odds_ratio, na.rm = TRUE),
@@ -773,36 +852,111 @@ if (OutlierPermutationIterations > 0) {
     )
 
   EmpiricalP <- OutlierPermutationNull %>%
-    group_by(type, focal_lower_bound, reference_lower_bound) %>%
+    group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
     summarize(
       empirical_p_greater = (sum(log_odds_ratio >= first(OutlierEnrichmentsRefBin$log_odds_ratio[
-        OutlierEnrichmentsRefBin$type == type[1] &
+        OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
+          OutlierEnrichmentsRefBin$type == type[1] &
           OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
           OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
       ]), na.rm = TRUE) + 1) / (dplyr::n() + 1),
       empirical_p_two_sided = (sum(abs(log_odds_ratio) >= abs(first(OutlierEnrichmentsRefBin$log_odds_ratio[
-        OutlierEnrichmentsRefBin$type == type[1] &
+        OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
+          OutlierEnrichmentsRefBin$type == type[1] &
           OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
           OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
       ])), na.rm = TRUE) + 1) / (dplyr::n() + 1),
       .groups = "drop"
     )
 
-  OutlierEnrichmentsRefBin %>%
-    left_join(NullStats, by = c("type", "focal_lower_bound", "reference_lower_bound")) %>%
-    left_join(EmpiricalP, by = c("type", "focal_lower_bound", "reference_lower_bound")) %>%
-    write_tsv('QTLBurdenOutlierEnrichmentPermutation.tsv')
-} else {
-  OutlierEnrichmentsRefBin %>%
-    mutate(
-      permutation_count = 0L,
-      median_log_odds_ratio = NA_real_,
-      q25_log_odds_ratio = NA_real_,
-      q75_log_odds_ratio = NA_real_,
-      se_null_log_odds_ratio = NA_real_,
-      mean_log_odds_ratio = NA_real_,
-      empirical_p_greater = NA_real_,
-      empirical_p_two_sided = NA_real_
+  OutlierEnrichmentsRefBin <- OutlierEnrichmentsRefBin %>%
+    left_join(
+      NullStats,
+      by = c("type", "focal_lower_bound", "reference_lower_bound", "enrichment_model")
     ) %>%
-    write_tsv('QTLBurdenOutlierEnrichmentPermutation.tsv')
+    left_join(
+      EmpiricalP,
+      by = c("type", "focal_lower_bound", "reference_lower_bound", "enrichment_model")
+    )
 }
+
+OutlierEnrichmentPermutation <- OutlierEnrichmentsRefBin %>%
+  mutate(
+    permutation_count = 0L,
+    median_log_odds_ratio = NA_real_,
+    q25_log_odds_ratio = NA_real_,
+    q75_log_odds_ratio = NA_real_,
+    se_null_log_odds_ratio = NA_real_,
+    mean_log_odds_ratio = NA_real_,
+    empirical_p_greater = NA_real_,
+    empirical_p_two_sided = NA_real_
+  )
+
+if ("permutation_count" %in% names(OutlierEnrichmentsRefBin)) {
+  OutlierEnrichmentPermutation <- OutlierEnrichmentPermutation %>%
+    left_join(
+      OutlierEnrichmentsRefBin %>%
+        select(
+          enrichment_model,
+          type,
+          focal_lower_bound,
+          reference_lower_bound,
+          permutation_count = permutation_count,
+          median_log_odds_ratio = median_log_odds_ratio,
+          q25_log_odds_ratio = q25_log_odds_ratio,
+          q75_log_odds_ratio = q75_log_odds_ratio,
+          se_null_log_odds_ratio = se_null_log_odds_ratio,
+          mean_log_odds_ratio = mean_log_odds_ratio,
+          empirical_p_greater = empirical_p_greater,
+          empirical_p_two_sided = empirical_p_two_sided
+        ),
+      by = c("enrichment_model", "type", "focal_lower_bound", "reference_lower_bound"),
+      suffix = c("", ".perm")
+    ) %>%
+    mutate(
+      permutation_count = if_else(
+        enrichment_model == "AllCalls",
+        permutation_count.perm,
+        0L
+      ),
+      median_log_odds_ratio = if_else(
+        enrichment_model == "AllCalls",
+        median_log_odds_ratio.perm,
+        NA_real_
+      ),
+      q25_log_odds_ratio = if_else(
+        enrichment_model == "AllCalls",
+        q25_log_odds_ratio.perm,
+        NA_real_
+      ),
+      q75_log_odds_ratio = if_else(
+        enrichment_model == "AllCalls",
+        q75_log_odds_ratio.perm,
+        NA_real_
+      ),
+      se_null_log_odds_ratio = if_else(
+        enrichment_model == "AllCalls",
+        se_null_log_odds_ratio.perm,
+        NA_real_
+      ),
+      mean_log_odds_ratio = if_else(
+        enrichment_model == "AllCalls",
+        mean_log_odds_ratio.perm,
+        NA_real_
+      ),
+      empirical_p_greater = if_else(
+        enrichment_model == "AllCalls",
+        empirical_p_greater.perm,
+        NA_real_
+      ),
+      empirical_p_two_sided = if_else(
+        enrichment_model == "AllCalls",
+        empirical_p_two_sided.perm,
+        NA_real_
+      )
+    ) %>%
+    select(-ends_with(".perm"))
+}
+
+OutlierEnrichmentPermutation %>%
+  write_tsv('QTLBurdenOutlierEnrichmentPermutation.tsv')

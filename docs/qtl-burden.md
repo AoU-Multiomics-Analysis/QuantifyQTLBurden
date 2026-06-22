@@ -84,6 +84,8 @@ The aFC weights file should contain at least:
 | `sid_pos` | Variant position. |
 | `log2_aFC` | Allelic fold-change effect size on the log2 scale. |
 | `log2_aFC_se` | Optional standard error for log2_aFC (if available). |
+| `log2_aFC_lower` | Optional lower 95% CI bound for log2_aFC (auto-converts to SE). |
+| `log2_aFC_upper` | Optional upper 95% CI bound for log2_aFC (auto-converts to SE). |
 
 The VCF should contain genotype fields for all samples to be scored. [`../scripts/QTLBurden.R`](../scripts/QTLBurden.R) parses GT values before the first `:` and supports:
 
@@ -144,13 +146,22 @@ When `AnnotateBurden = true`, the workflow can also emit:
 | `QTLGeneBurdenQC_TailZ.pdf` | Tail behavior diagnostics for centered burden z scores. |
 | `QTLGeneBurdenQC_DominantVariantFraction.pdf` | Dominant-variant fraction diagnostics. |
 | `QTLGeneBurdenQC_ReasonCounts.pdf` | Frequency of fail/warn reasons by type. |
-| `QTLBurdenMedianGenesPerBinByGeneSet.tsv` | Median genes per individual per bin by gene set (`All`, `CausalCodingVariantGenesRemoved`, `DominantVariantGenesRemoved`). |
-| `QTLBurdenMedianGenesPerBin.tsv` | Median genes per individual in each percent-change bin (all calls, no extreme-noise filtering). |
-| `QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv` | Median genes per individual in each percent-change bin after removing dosage-extreme rows flagged as noisy (`is_dosage_extreme_call & is_noisy_extreme_call`). |
-| `QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv` | Same as above, split by gene set (`All`, `CausalCodingVariantGenesRemoved`, `DominantVariantGenesRemoved`). |
-| `QTLBurdenMedianGenesPerBin*.tsv` | Also adds `median_genes`, `q25_genes`, `q75_genes` (unweighted counts), and `median_weighted_genes`, `q25_weighted_genes`, `q75_weighted_genes` (weighted by `burden_tail_weight`: `P(loss-like)` for `<= -50`, `P(gain-like)` for `>= 50`, `1` otherwise). |
+| `QTLBurdenMedianGenesPerBin_AllCalls.tsv` | Median genes per individual in each bin using all calls (unfiltered and noisy-filtered variants; all/noise-filtered gene-set versions also generated). |
+| `QTLBurdenMedianGenesPerBin_HighConfidence.tsv` | Same as above, using high-confidence calls only (low-confidence dosage-extreme calls removed). |
+| `QTLBurdenMedianGenesPerBin_HighKORemoved.tsv` | Same as above, excluding high-number KO genes (`pid` with `NumKO >= 100`). |
+| `QTLBurdenMedianGenesPerBinByGeneSet_AllCalls.tsv` | Median genes per individual per bin by gene set (`All`, `CausalCodingVariantGenesRemoved`, `DominantVariantGenesRemoved`) for all calls. |
+| `QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence.tsv` | Same as above, using high-confidence calls. |
+| `QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved.tsv` | Same as above, after high KO-count genes removed. |
+| `QTLBurdenMedianGenesPerBin_AllCalls_DosageNoisyFiltered.tsv` | All-calls median by bin after removing dosage-extreme rows flagged noisy (`is_dosage_extreme_call & is_noisy_extreme_call`). |
+| `QTLBurdenMedianGenesPerBin_HighConfidence_DosageNoisyFiltered.tsv` | High-confidence median by bin after noisy dosage-extreme filtering (already included in high-confidence model definition). |
+| `QTLBurdenMedianGenesPerBin_HighKORemoved_DosageNoisyFiltered.tsv` | High-KO-removed median by bin after noisy dosage-extreme filtering. |
+| `QTLBurdenMedianGenesPerBinByGeneSet_AllCalls_DosageNoisyFiltered.tsv` | By-gene-set noisy-filtered median table for all calls. |
+| `QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence_DosageNoisyFiltered.tsv` | By-gene-set noisy-filtered median table for high-confidence calls. |
+| `QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered.tsv` | By-gene-set noisy-filtered median table after high-KO removal. |
+| `QTLBurdenMedianGenesPerBin*` | Also includes `median_genes`, `q25_genes`, `q75_genes` (unweighted counts), and `median_weighted_genes`, `q25_weighted_genes`, `q75_weighted_genes` (weighted by `burden_tail_weight`: `P(loss-like)` for `<= -50`, `P(gain-like)` for `>= 50`, `1` otherwise). |
 | `QTLBurdenPerSampleGene.parquet` | Per-sample, per-gene burden table used for downstream medians and enrichment analyses. |
-| `QTLBurdenOutlierEnrichment.tsv` | Observed expression outlier enrichment by burden bin. |
+| `QTLBurdenOutlierEnrichment.tsv` | Observed expression outlier enrichment by burden bin for three models: `AllCalls`, `HighConfidence`, and `HighKORemoved`. |
+| `QTLBurdenOutlierEnrichmentPermutation.tsv` | Permutation-based p-values and null odds-ratio summary for `AllCalls` only; other model rows are included with `NA` null fields. |
 
 ## Scripts
 

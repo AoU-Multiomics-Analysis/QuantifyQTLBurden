@@ -19,6 +19,14 @@ resolve_optional_numeric_column <- function(df, requested_col, fallback_cols, de
       return(as.numeric(df[[col]]))
     }
   }
+
+  if ("log2_aFC_lower" %in% names(df) && "log2_aFC_upper" %in% names(df)) {
+    ci_lower <- as.numeric(df$log2_aFC_lower)
+    ci_upper <- as.numeric(df$log2_aFC_upper)
+    se <- (ci_upper - ci_lower) / (2 * qnorm(0.975))
+    return(se)
+  }
+
   rep(default, nrow(df))
 }
 
@@ -310,7 +318,7 @@ option_list <- list(
     optparse::make_option(c("--AllelicFoldChangeData"), type="character", default=NULL,
                         help="Summary file containing alleleic fold change per variant", metavar = "type"),
     optparse::make_option(c("--VariantEffectSEColumn"), type="character", default="auto",
-                        help="Optional aFC standard error column (e.g. log2_aFC_se). Default auto-detects common names.",
+                        help="Optional aFC standard error column (e.g. log2_aFC_se). Default auto-detects common names, and if missing, derives SE from log2_aFC_lower/log2_aFC_upper.",
                         metavar = "type"),
     optparse::make_option(c("--LossThreshold"), type="double", default=NA,
                         help="Posterior loss threshold on total log2 burden. Default: log2(0.5) (50% decrease).", metavar = "type"),
