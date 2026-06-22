@@ -2,6 +2,7 @@ library(tidyverse)
 library(data.table)
 library(optparse)
 library(rtracklayer)
+library(arrow)
 
 safe_max <- function(x) {
   if (all(is.na(x))) {
@@ -382,8 +383,35 @@ QTLBurdenFiltered <- QTLBurdenZscores %>%
     select(-any_of(c("gene_type", "gene_name"))) %>%
     left_join(GeneTypes, by = 'gene_id')
 
+QTLBurdenPerSampleGene <- QTLBurdenFiltered %>%
+    select(
+      individual_id,
+      sample,
+      pid,
+      gene_id,
+      gene_name,
+      gene_type,
+      CausalCodingVariantPresent,
+      PercentChangeBin,
+      PercentChangeCenteredEffectPopulation,
+      ObservedZ,
+      CenteredEffectPopulation,
+      CenteredEffectZPopulation,
+      CenteredEffectZEmpiricalPopulation,
+      ExpectedShift_Population,
+      GeneVariance_Population,
+      EmpiricalVariance_Population,
+      has_missing_genotype,
+      n_missing_genotypes
+    )
+
+arrow::write_parquet(
+  QTLBurdenPerSampleGene,
+  "QTLBurdenPerSampleGene.parquet"
+)
+
 # and summarize the range
-MedianGenesPerIndividual <- QTLBurdenFiltered %>%
+MedianGenesPerIndividual <- QTLBurdenPerSampleGene %>%
     group_by(individual_id, PercentChangeBin,gene_type) %>%
     summarise(
         n_genes = n(),
@@ -401,7 +429,7 @@ MedianGenesPerIndividual <- QTLBurdenFiltered %>%
     mutate(PercentChangeBin = fct_inorder(PercentChangeBin))  %>% 
     mutate(GeneCategory = 'All')
 
-MedianGenesPerIndividualCodingVariantGenesRemoved <- QTLBurdenFiltered %>%
+MedianGenesPerIndividualCodingVariantGenesRemoved <- QTLBurdenPerSampleGene %>%
     filter(CausalCodingVariantPresent == FALSE) %>% 
     group_by(individual_id, PercentChangeBin,gene_type) %>%
     summarise(
