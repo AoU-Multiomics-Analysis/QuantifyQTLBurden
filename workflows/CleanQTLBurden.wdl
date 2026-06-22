@@ -34,10 +34,6 @@ task CleanBurdenData {
     output {
         File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
-        File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
-        File QTLBurdenMedianGenesPerBinByGeneSet = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
-        File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = "QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv"
-        File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = "QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv"
         File QTLBurdenPerSampleGene = "QTLBurdenPerSampleGene.parquet"
     }
 }

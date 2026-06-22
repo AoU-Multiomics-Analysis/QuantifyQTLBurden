@@ -290,22 +290,3 @@ arrow::write_parquet(
   QTLBurdenPerSampleGene,
   "QTLBurdenPerSampleGene.parquet"
 )
-
-source(file.path(SCRIPT_DIR, "qtl_burden_functions", "median_summary_functions.R"))
-
-write_median_gene_summaries(
-  df = QTLBurdenFiltered_AllCalls,
-  model_label = "AllCalls",
-  output_suffix = "AllCalls"
-)
-write_median_gene_summaries(
-  df = QTLBurdenFiltered_HighConfidence,
-  model_label = "HighConfidence",
-  output_suffix = "HighConfidence"
-)
-write_median_gene_summaries(
-  df = QTLBurdenFiltered_HighKORemoved,
-  model_label = "HighKORemoved",
-  output_suffix = "HighKORemoved",
-  write_legacy_outputs = TRUE
-)

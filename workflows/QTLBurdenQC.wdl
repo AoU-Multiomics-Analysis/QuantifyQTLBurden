@@ -72,6 +72,35 @@ task ComputeQTLBurdenOutlierEnrichment {
   }
 }
 
+task ComputeQTLBurdenMedianGenesPerBin {
+  input {
+    File CleanedQTLBurden
+    File aFC
+    Float DominantVariantWarnThreshold = 0.98
+  }
+
+  command <<<
+  Rscript /tmp/QTLBurdenMedianGeneSummaries.R \
+    --CleanedQTLBurden ~{CleanedQTLBurden} \
+    --aFC ~{aFC} \
+    --DominantVariantWarnThreshold ~{DominantVariantWarnThreshold}
+  >>>
+
+  runtime {
+    docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
+    memory: "32G"
+    cpu: 2
+    disks: "local-disk 2500 SSD"
+  }
+
+  output {
+    File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
+    File QTLBurdenMedianGenesPerBinByGeneSet = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
+    File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = "QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv"
+    File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = "QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv"
+  }
+}
+
 task PlotQTLBurdenQC {
   input {
     File QTLGeneBurdenQC
@@ -159,6 +188,13 @@ workflow QTLBurdenQC {
         OutlierPermutationIterations = OutlierPermutationIterations
     }
 
+    call ComputeQTLBurdenMedianGenesPerBin {
+      input:
+        CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
+        aFC = aFCWeights,
+        DominantVariantWarnThreshold = DominantVariantWarnThreshold
+    }
+
     call ComputeQTLBurdenQC {
       input:
         CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
@@ -178,7 +214,7 @@ workflow QTLBurdenQC {
   call PlotQTLBurdenQC {
     input:
       QTLGeneBurdenQC = ComputeQTLBurdenQC.QTLGeneBurdenQC,
-      QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet,
+      QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinByGeneSet,
       QCPlotPrefix = QCPlotPrefix
   }
 
@@ -188,10 +224,10 @@ workflow QTLBurdenQC {
     File QTLGeneBurdenQC = ComputeQTLBurdenQC.QTLGeneBurdenQC
     File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.QTLGeneBurdenStatusList
     File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichment
-    File QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
-    File QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet
-    File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
-    File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
+    File QTLBurdenMedianGenesPerBin = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBin 
+    File QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinByGeneSet
+    File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
+    File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
     File QTLBurdenOutlierEnrichmentPermutation = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichmentPermutation
     File QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
     File QTLGeneBurdenQC_StatusByGeneType = PlotQTLBurdenQC.QTLGeneBurdenQC_StatusByGeneType
