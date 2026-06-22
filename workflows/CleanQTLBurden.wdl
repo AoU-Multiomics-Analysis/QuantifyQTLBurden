@@ -59,6 +59,8 @@ task CleanBurdenData {
         File QTLGeneBurdenQC_ReasonCounts = "QTLGeneBurdenQC_ReasonCounts.pdf"
         File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv"
         File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
+        File QTLBurdenMedianGenesPerBinByGeneSet = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
+        File QTLBurdenOutlierEnrichmentPermutation = "QTLBurdenOutlierEnrichmentPermutation.tsv"
         File QTLBurdenPerSampleGene = "QTLBurdenPerSampleGene.parquet"
     }
 }
@@ -97,6 +99,8 @@ workflow CleanQTLBurden {
         File QTLGeneBurdenQC_ReasonCounts = CleanBurdenData.QTLGeneBurdenQC_ReasonCounts
         File QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
         File QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
+        File QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet
+        File QTLBurdenOutlierEnrichmentPermutation = CleanBurdenData.QTLBurdenOutlierEnrichmentPermutation
         File QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
     }
 
