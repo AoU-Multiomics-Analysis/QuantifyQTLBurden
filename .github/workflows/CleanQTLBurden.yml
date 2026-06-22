@@ -7,6 +7,7 @@ on:
     paths:
       - 'scripts/CleanQTLBurden.R'
       - 'scripts/PlotQTLBurdenQC.R'
+      - 'scripts/qtl_burden_functions/**'
       - '.github/workflows/CleanQTLBurden.yml'
   #pull_request:
   #  branches: [ "main" ]

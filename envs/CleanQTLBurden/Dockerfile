@@ -15,5 +15,5 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
     conda-forge::r-bedr \
     bioconda::htslib \
     bioconda::bioconductor-rtracklayer
-COPY scripts/*  . 
+COPY scripts/ .
 CMD ["bash"]
