@@ -10,7 +10,6 @@ task CleanBurdenData {
         File eQTLSusie
         File GTF
         Float BurdenTailProbability = 0.9
-        Int OutlierPermutationIterations = 200
     }
     
     command <<<
@@ -22,8 +21,7 @@ task CleanBurdenData {
         --aFC ~{aFC} \
         --GTF ~{GTF} \
         --AncestryAssignments ~{AncestryAssignments} \
-        --BurdenTailProbability ~{BurdenTailProbability} \
-        --OutlierPermutationIterations ~{OutlierPermutationIterations}
+        --BurdenTailProbability ~{BurdenTailProbability}
     >>>
 
     runtime {
@@ -36,12 +34,10 @@ task CleanBurdenData {
     output {
         File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
-        File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv"
         File QTLBurdenMedianGenesPerBin = "QTLBurdenMedianGenesPerBin.tsv"
         File QTLBurdenMedianGenesPerBinByGeneSet = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
         File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = "QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv"
         File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = "QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv"
-        File QTLBurdenOutlierEnrichmentPermutation = "QTLBurdenOutlierEnrichmentPermutation.tsv"
         File QTLBurdenPerSampleGene = "QTLBurdenPerSampleGene.parquet"
     }
 }

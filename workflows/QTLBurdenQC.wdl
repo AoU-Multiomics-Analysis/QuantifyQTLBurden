@@ -47,6 +47,31 @@ task ComputeQTLBurdenQC {
   }
 }
 
+task ComputeQTLBurdenOutlierEnrichment {
+  input {
+    File CleanedQTLBurden
+    Int OutlierPermutationIterations = 200
+  }
+
+  command <<<
+  Rscript /tmp/QTLBurdenOutlierEnrichment.R \
+    --CleanedQTLBurden ~{CleanedQTLBurden} \
+    --OutlierPermutationIterations ~{OutlierPermutationIterations}
+  >>>
+
+  runtime {
+    docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
+    memory: "32G"
+    cpu: 2
+    disks: "local-disk 2500 SSD"
+  }
+
+  output {
+    File QTLBurdenOutlierEnrichment = "QTLBurdenOutlierEnrichment.tsv"
+    File QTLBurdenOutlierEnrichmentPermutation = "QTLBurdenOutlierEnrichmentPermutation.tsv"
+  }
+}
+
 task PlotQTLBurdenQC {
   input {
     File QTLGeneBurdenQC
@@ -125,7 +150,12 @@ workflow QTLBurdenQC {
       AncestryAssignments = AncestryAssignments,
         eQTLSusie = eQTLSusie,
         GTF = GTF,
-        BurdenTailProbability = BurdenTailProbability,
+        BurdenTailProbability = BurdenTailProbability
+    }
+
+    call ComputeQTLBurdenOutlierEnrichment {
+      input:
+        CleanedQTLBurden = CleanBurdenData.QTLBurdenSummaryCleaned,
         OutlierPermutationIterations = OutlierPermutationIterations
     }
 
@@ -157,12 +187,12 @@ workflow QTLBurdenQC {
     File QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
     File QTLGeneBurdenQC = ComputeQTLBurdenQC.QTLGeneBurdenQC
     File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.QTLGeneBurdenStatusList
-    File QTLBurdenOutlierEnrichment = CleanBurdenData.QTLBurdenOutlierEnrichment
+    File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichment
     File QTLBurdenMedianGenesPerBin = CleanBurdenData.QTLBurdenMedianGenesPerBin 
     File QTLBurdenMedianGenesPerBinByGeneSet = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSet
     File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
     File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = CleanBurdenData.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
-    File QTLBurdenOutlierEnrichmentPermutation = CleanBurdenData.QTLBurdenOutlierEnrichmentPermutation
+    File QTLBurdenOutlierEnrichmentPermutation = ComputeQTLBurdenOutlierEnrichment.QTLBurdenOutlierEnrichmentPermutation
     File QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
     File QTLGeneBurdenQC_StatusByGeneType = PlotQTLBurdenQC.QTLGeneBurdenQC_StatusByGeneType
     File QTLGeneBurdenQC_StatusOverall = PlotQTLBurdenQC.QTLGeneBurdenQC_StatusOverall
