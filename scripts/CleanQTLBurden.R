@@ -4,28 +4,20 @@ library(optparse)
 library(rtracklayer)
 library(arrow)
 
-safe_max <- function(x) {
-  if (all(is.na(x))) {
-    return(NA_real_)
+get_script_dir <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", cmd_args, value = TRUE)
+  if (length(file_arg) > 0) {
+    return(dirname(normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/")))
   }
-  max(x, na.rm = TRUE)
+  if (!is.null(sys.frame(1)$ofile)) {
+    return(dirname(normalizePath(sys.frame(1)$ofile, winslash = "/")))
+  }
+  return(getwd())
 }
 
-safe_max_abs <- function(x) {
-  if (all(is.na(x))) {
-    return(NA_real_)
-  }
-  max(abs(x), na.rm = TRUE)
-}
-
-safe_ratio <- function(numerator, denominator) {
-  numerator <- as.numeric(numerator)
-  denominator <- as.numeric(denominator)
-  out <- rep(NA_real_, length(numerator))
-  valid <- is.finite(numerator) & is.finite(denominator) & denominator != 0
-  out[valid] <- numerator[valid] / denominator[valid]
-  out
-}
+SCRIPT_DIR <- get_script_dir()
+source(file.path(SCRIPT_DIR, "qtl_burden_functions", "math_utils.R"))
 
 ####### PARSE ARGUMENTS #########
 option_list <- list(
@@ -460,153 +452,7 @@ arrow::write_parquet(
   "QTLBurdenPerSampleGene.parquet"
 )
 
-compute_median_genes_per_bin <- function(df, remove_pids = character(0), remove_noisy_dosage_extremes = TRUE, gene_category = "All") {
-  filtered <- if (length(remove_pids) == 0) {
-    df
-  } else {
-    df %>% filter(!pid %in% remove_pids)
-  }
-
-  if (remove_noisy_dosage_extremes) {
-    filtered <- filtered %>%
-      filter(!(is_dosage_extreme_call & is_noisy_extreme_call))
-  }
-
-  filtered %>%
-    mutate(
-      burden_tail_weight = case_when(
-        PercentChangeCenteredEffectPopulation <= -50 ~ coalesce(burden_probability_loss50, 1),
-        PercentChangeCenteredEffectPopulation >= 50 ~ coalesce(burden_probability_gain50, 1),
-        TRUE ~ 1
-      )
-    ) %>%
-    group_by(individual_id, PercentChangeBin, gene_type) %>%
-    summarise(
-      n_genes = n(),
-      weighted_n_genes = sum(burden_tail_weight, na.rm = TRUE),
-      median_abs_z_individual = median(abs(ObservedZ), na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    group_by(PercentChangeBin, gene_type) %>%
-    summarise(
-      median_genes = median(n_genes, na.rm = TRUE),
-      q25_genes = quantile(n_genes, 0.25, na.rm = TRUE),
-      q75_genes = quantile(n_genes, 0.75, na.rm = TRUE),
-      median_weighted_genes = median(weighted_n_genes, na.rm = TRUE),
-      q25_weighted_genes = quantile(weighted_n_genes, 0.25, na.rm = TRUE),
-      q75_weighted_genes = quantile(weighted_n_genes, 0.75, na.rm = TRUE),
-      median_abs_z = median(median_abs_z_individual, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    mutate(PercentChangeBin = fct_inorder(PercentChangeBin)) %>%
-    mutate(
-      GeneCategory = gene_category,
-      n_removed_genes = n_distinct(remove_pids)
-    )
-}
-
-# genes requiring high-variant-dominance QC are used for both model summaries
-DominantVariantWarnGenes <- aFCGeneQC %>%
-  filter(
-    !is.na(dominant_variant_fraction_effect),
-    dominant_variant_fraction_effect >= DominantVariantWarnThreshold
-  ) %>%
-  pull(pid)
-
-write_median_gene_summaries <- function(df, model_label, output_suffix = NULL, write_legacy_outputs = FALSE) {
-  has_suffix <- !is.null(output_suffix) && nchar(output_suffix) > 0
-  base_prefix <- if (has_suffix) {
-    paste0("QTLBurdenMedianGenesPerBin_", output_suffix)
-  } else {
-    "QTLBurdenMedianGenesPerBin"
-  }
-  by_gene_set_prefix <- if (has_suffix) {
-    paste0("QTLBurdenMedianGenesPerBinByGeneSet_", output_suffix)
-  } else {
-    "QTLBurdenMedianGenesPerBinByGeneSet"
-  }
-
-  all_samples <- compute_median_genes_per_bin(
-    df = df,
-    remove_pids = character(0),
-    remove_noisy_dosage_extremes = FALSE,
-    gene_category = "All"
-  )
-
-  all_samples_noisy <- compute_median_genes_per_bin(
-    df = df,
-    remove_pids = character(0),
-    remove_noisy_dosage_extremes = TRUE,
-    gene_category = "All"
-  )
-
-  coding_removed <- compute_median_genes_per_bin(
-    df = df,
-    remove_pids = CodingVariantGenes,
-    remove_noisy_dosage_extremes = FALSE,
-    gene_category = "CausalCodingVariantGenesRemoved"
-  )
-
-  coding_removed_noisy <- compute_median_genes_per_bin(
-    df = df,
-    remove_pids = CodingVariantGenes,
-    remove_noisy_dosage_extremes = TRUE,
-    gene_category = "CausalCodingVariantGenesRemoved"
-  )
-
-  dominant_removed <- compute_median_genes_per_bin(
-    df = df,
-    remove_pids = DominantVariantWarnGenes,
-    remove_noisy_dosage_extremes = FALSE,
-    gene_category = "DominantVariantGenesRemoved"
-  )
-
-  dominant_removed_noisy <- compute_median_genes_per_bin(
-    df = df,
-    remove_pids = DominantVariantWarnGenes,
-    remove_noisy_dosage_extremes = TRUE,
-    gene_category = "DominantVariantGenesRemoved"
-  )
-
-  all_summary <- all_samples %>% mutate(enrichment_model = model_label)
-  all_summary_noisy <- all_samples_noisy %>% mutate(enrichment_model = model_label)
-
-  all_by_gene_set <- bind_rows(
-    all_samples,
-    coding_removed,
-    dominant_removed
-  ) %>%
-    arrange(GeneCategory, gene_type, PercentChangeBin) %>%
-    mutate(enrichment_model = model_label)
-
-  all_by_gene_set_noisy <- bind_rows(
-    all_samples_noisy,
-    coding_removed_noisy,
-    dominant_removed_noisy
-  ) %>%
-    arrange(GeneCategory, gene_type, PercentChangeBin) %>%
-    mutate(enrichment_model = model_label)
-
-  all_summary %>% write_tsv(paste0(base_prefix, ".tsv"))
-  all_summary_noisy %>% write_tsv(paste0(base_prefix, "_DosageNoisyFiltered.tsv"))
-  all_by_gene_set %>% write_tsv(paste0(by_gene_set_prefix, ".tsv"))
-  all_by_gene_set_noisy %>% write_tsv(paste0(by_gene_set_prefix, "_DosageNoisyFiltered.tsv"))
-
-  if (write_legacy_outputs) {
-    all_summary %>%
-      select(-enrichment_model) %>%
-      write_tsv('QTLBurdenMedianGenesPerBin.tsv')
-    all_summary_noisy %>%
-      select(-enrichment_model) %>%
-      write_tsv('QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv')
-    all_by_gene_set %>%
-      select(-enrichment_model) %>%
-      write_tsv('QTLBurdenMedianGenesPerBinByGeneSet.tsv')
-    all_by_gene_set_noisy %>%
-      select(-enrichment_model) %>%
-      write_tsv('QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv')
-  }
-}
+source(file.path(SCRIPT_DIR, "qtl_burden_functions", "median_summary_functions.R"))
 
 write_median_gene_summaries(
   df = QTLBurdenFiltered_AllCalls,
@@ -626,160 +472,9 @@ write_median_gene_summaries(
 )
 
 ####### COMPUTE OUTLIER ENRICHMENT PER PERCENT CHANGE BIN ##########
+source(file.path(SCRIPT_DIR, "qtl_burden_functions", "enrichment_functions.R"))
+
 message('Computing outlier enrichment')
-
-extract_bin_lower_bound <- function(percent_change_bin) {
-  as.numeric(stringr::str_match(
-    as.character(percent_change_bin),
-    "^[\\[\\(]?(-?\\d+\\.?\\d*),"
-  )[, 2])
-}
-
-compute_bin_enrichment <- function(df, focal_lower_bound, ref_lower_bound = -10, outlier_col) {
-  df2 <- df %>%
-    dplyr::mutate(lower = extract_bin_lower_bound(PercentChangeBin)) %>%
-    dplyr::filter(!is.na(lower)) %>%
-    dplyr::filter(lower %in% c(focal_lower_bound, ref_lower_bound)) %>%
-    dplyr::mutate(
-      bin_group = dplyr::case_when(
-        lower == focal_lower_bound ~ "focal",
-        lower == ref_lower_bound ~ "reference"
-      )
-    ) %>%
-    dplyr::group_by(bin_group, .data[[outlier_col]]) %>%
-    dplyr::summarise(n = sum(n), .groups = "drop")
-
-  a <- df2 %>% dplyr::filter(bin_group == "focal", .data[[outlier_col]] == TRUE) %>% dplyr::pull(n)
-  b <- df2 %>% dplyr::filter(bin_group == "focal", .data[[outlier_col]] == FALSE) %>% dplyr::pull(n)
-  c <- df2 %>% dplyr::filter(bin_group == "reference", .data[[outlier_col]] == TRUE) %>% dplyr::pull(n)
-  d <- df2 %>% dplyr::filter(bin_group == "reference", .data[[outlier_col]] == FALSE) %>% dplyr::pull(n)
-
-  if (length(a) == 0) a <- 0
-  if (length(b) == 0) b <- 0
-  if (length(c) == 0) c <- 0
-  if (length(d) == 0) d <- 0
-
-  a <- as.numeric(a)
-  b <- as.numeric(b)
-  c <- as.numeric(c)
-  d <- as.numeric(d)
-
-  a_cc <- a + 0.5
-  b_cc <- b + 0.5
-  c_cc <- c + 0.5
-  d_cc <- d + 0.5
-
-  log_odds_ratio <- log(a_cc) + log(d_cc) - log(b_cc) - log(c_cc)
-  odds_ratio <- exp(log_odds_ratio)
-  se_log_or <- sqrt(1 / a_cc + 1 / b_cc + 1 / c_cc + 1 / d_cc)
-
-  tab <- matrix(c(a, b, c, d), nrow = 2, byrow = TRUE)
-
-  tibble::tibble(
-    focal_lower_bound = focal_lower_bound,
-    reference_lower_bound = ref_lower_bound,
-    focal_outliers = a,
-    focal_non_outliers = b,
-    ref_outliers = c,
-    ref_non_outliers = d,
-    focal_prop = ifelse(a + b > 0, a / (a + b), NA_real_),
-    ref_prop = ifelse(c + d > 0, c / (c + d), NA_real_),
-    odds_ratio = odds_ratio,
-    log_odds_ratio = log_odds_ratio,
-    se_log_or = se_log_or,
-    ci_low = exp(log_odds_ratio - 1.96 * se_log_or),
-    ci_high = exp(log_odds_ratio + 1.96 * se_log_or),
-    p_value = fisher.test(tab, simulate.p.value = TRUE)$p.value
-  )
-}
-
-run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm, type_label, outlier_col) {
-  permuted_log_or <- vector("list", n_perm)
-  start_time <- Sys.time()
-  report_every <- max(1L, floor(n_perm / 10))
-
-  for (iter_idx in seq_len(n_perm)) {
-    permuted_data <- benchmark_data %>%
-      mutate(
-        !!sym(outlier_col) := sample(.data[[outlier_col]])
-      ) %>%
-      group_by(PercentChangeBin) %>%
-      dplyr::count(!!sym(outlier_col))
-
-    permuted_log_or[[iter_idx]] <- purrr::map_dfr(
-      thresholds,
-      function(.x) {
-        compute_bin_enrichment(
-          permuted_data,
-          focal_lower_bound = .x,
-          ref_lower_bound = -10,
-          outlier_col = outlier_col
-        )
-      }
-      ) %>%
-      mutate(
-        permutation = iter_idx,
-        type = type_label
-      )
-
-    if (iter_idx %% report_every == 0 || iter_idx == n_perm) {
-      elapsed_seconds <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
-      remaining_seconds <- if (iter_idx == 0) {
-        NA_real_
-      } else {
-        (elapsed_seconds / iter_idx) * (n_perm - iter_idx)
-      }
-      message(sprintf(
-        "[%s] permutation %d/%d (%.1f%%) complete; elapsed=%0.1fs; eta=%0.1fs",
-        type_label,
-        iter_idx,
-        n_perm,
-        (iter_idx / n_perm) * 100,
-        elapsed_seconds,
-        ifelse(is.nan(remaining_seconds), NA_real_, remaining_seconds)
-      ))
-    }
-  }
-
-  bind_rows(permuted_log_or)
-}
-
-compute_enrichment_for_model <- function(df, model_label, thresholds) {
-  down_outlier_count <- df %>%
-    filter(gene_type == 'protein_coding') %>%
-    group_by(PercentChangeBin) %>%
-    dplyr::count(DownOutlier)
-
-  up_outlier_count <- df %>%
-    filter(gene_type == 'protein_coding') %>%
-    group_by(PercentChangeBin) %>%
-    dplyr::count(UpOutlier)
-
-  results_down_ref_bin_comparison <- purrr::map_dfr(
-    thresholds,
-    ~ compute_bin_enrichment(
-      down_outlier_count,
-      focal_lower_bound = .x,
-      ref_lower_bound = -10,
-      outlier_col = "DownOutlier"
-    )
-  ) %>%
-    mutate(type = "Down", enrichment_model = model_label)
-
-  results_up_ref_bin_comparison <- purrr::map_dfr(
-    thresholds,
-    ~ compute_bin_enrichment(
-      up_outlier_count,
-      focal_lower_bound = .x,
-      ref_lower_bound = -10,
-      outlier_col = "UpOutlier"
-    )
-  ) %>%
-    mutate(type = "Up", enrichment_model = model_label)
-
-  bind_rows(results_down_ref_bin_comparison, results_up_ref_bin_comparison) %>%
-    filter(focal_lower_bound != -10)
-}
 
 thresholds <- QTLBurdenFiltered_AllCalls %>%
   filter(gene_type == 'protein_coding') %>%
