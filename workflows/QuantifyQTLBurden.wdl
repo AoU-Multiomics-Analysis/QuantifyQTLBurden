@@ -98,6 +98,7 @@ import "CleanQTLBurden.wdl" as clean
     File? QTLGeneBurdenQC_ReasonCounts = QTLBurdenQC.QTLGeneBurdenQC_ReasonCounts
     File? QTLGeneBurdenQC_GeneSetMedianImpact = QTLBurdenQC.QTLGeneBurdenQC_GeneSetMedianImpact
     File? QTLBurdenOutlierEnrichment = QTLBurdenQC.QTLBurdenOutlierEnrichment
+    File? QTLBurdenOutlierEnrichmentNoisyFilterImpact = QTLBurdenQC.QTLBurdenOutlierEnrichmentNoisyFilterImpact
     File? QTLBurdenMedianGenesPerBin_AllCalls = QTLBurdenQC.QTLBurdenMedianGenesPerBin_AllCalls
     File? QTLBurdenMedianGenesPerBin_HighConfidence = QTLBurdenQC.QTLBurdenMedianGenesPerBin_HighConfidence
     File? QTLBurdenMedianGenesPerBin_HighKORemoved = QTLBurdenQC.QTLBurdenMedianGenesPerBin_HighKORemoved

@@ -166,6 +166,7 @@ Legacy unsuffixed median-bin outputs (`QTLBurdenMedianGenesPerBin.tsv`, `QTLBurd
 | `QTLBurdenMedianGenesPerBin*` | Also includes `median_genes`, `q25_genes`, `q75_genes` (unweighted counts), and `median_weighted_genes`, `q25_weighted_genes`, `q75_weighted_genes` (weighted by `burden_tail_weight`: `P(loss-like)` for `<= -50`, `P(gain-like)` for `>= 50`, `1` otherwise). |
 | `QTLBurdenPerSampleGene.parquet` | Per-sample, per-gene burden table used for downstream medians and enrichment analyses. |
 | `QTLBurdenOutlierEnrichment.tsv` | Observed expression outlier enrichment by burden bin for three models: `AllCalls`, `HighConfidence`, and `HighKORemoved`. |
+| `QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv` | Per-bin direct comparison of `AllCalls` vs `HighConfidence` (removing `is_noisy_extreme_call` within extreme bins), including change in log-odds ratio, Fisher p-value change, and contingency counts. |
 | `QTLBurdenOutlierEnrichmentPermutation.tsv` | Permutation-based p-values and null odds-ratio summary for `AllCalls` only; other model rows are included with `NA` null fields. |
 
 ## Scripts

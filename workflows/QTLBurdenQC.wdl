@@ -69,6 +69,7 @@ task ComputeQTLBurdenOutlierEnrichment {
   output {
     File qtl_burden_outlier_enrichment = "QTLBurdenOutlierEnrichment.tsv"
     File qtl_burden_outlier_enrichment_permutation = "QTLBurdenOutlierEnrichmentPermutation.tsv"
+    File qtl_burden_outlier_enrichment_noisy_filter_impact = "QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv"
   }
 }
 
@@ -215,6 +216,7 @@ workflow QTLBurdenQC {
     File QTLGeneBurdenQC = ComputeQTLBurdenQC.qtl_gene_burden_qc
     File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.qtl_gene_burden_status_list
     File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.qtl_burden_outlier_enrichment
+    File QTLBurdenOutlierEnrichmentNoisyFilterImpact = ComputeQTLBurdenOutlierEnrichment.qtl_burden_outlier_enrichment_noisy_filter_impact
     File QTLBurdenMedianGenesPerBin_AllCalls = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_all_calls
     File QTLBurdenMedianGenesPerBin_HighConfidence = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_high_confidence
     File QTLBurdenMedianGenesPerBin_HighKORemoved = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_high_ko_removed

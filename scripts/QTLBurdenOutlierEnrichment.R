@@ -48,6 +48,14 @@ thresholds <- QTLBurdenFiltered_AllCalls %>%
   arrange(lower) %>%
   pull(lower)
 
+QTLBurdenFiltered_HighConfidence <- QTLBurdenFiltered_AllCalls %>%
+  filter(!(is_dosage_extreme_call & is_noisy_extreme_call))
+
+QTLBurdenFiltered_HighKORemoved <- QTLBurdenFiltered_AllCalls %>%
+  group_by(pid) %>%
+  filter(sum(PercentChangeCenteredEffectPopulation < -50, na.rm = TRUE) < 100) %>%
+  ungroup()
+
 OutlierEnrichmentsRefBin <- bind_rows(
   compute_enrichment_for_model(
     df = QTLBurdenFiltered_AllCalls,
@@ -55,15 +63,12 @@ OutlierEnrichmentsRefBin <- bind_rows(
     thresholds = thresholds
   ),
   compute_enrichment_for_model(
-    df = QTLBurdenFiltered_AllCalls %>% filter(!(is_dosage_extreme_call & is_noisy_extreme_call)),
+    df = QTLBurdenFiltered_HighConfidence,
     model_label = "HighConfidence",
     thresholds = thresholds
   ),
   compute_enrichment_for_model(
-    df = QTLBurdenFiltered_AllCalls %>%
-      group_by(pid) %>%
-      filter(sum(PercentChangeCenteredEffectPopulation < -50, na.rm = TRUE) < 100) %>%
-      ungroup(),
+    df = QTLBurdenFiltered_HighKORemoved,
     model_label = "HighKORemoved",
     thresholds = thresholds
   )
@@ -71,6 +76,69 @@ OutlierEnrichmentsRefBin <- bind_rows(
   arrange(enrichment_model, type, focal_lower_bound)
 
 OutlierEnrichmentsRefBin %>% write_tsv("QTLBurdenOutlierEnrichment.tsv")
+
+message("Comparing impact of removing noisy extreme calls from BurdenTailProbability-driven filtering")
+
+OutlierEnrichmentNoisyFilterImpact <- OutlierEnrichmentsRefBin %>%
+  filter(enrichment_model %in% c("AllCalls", "HighConfidence")) %>%
+  select(
+    type,
+    focal_lower_bound,
+    reference_lower_bound,
+    enrichment_model,
+    log_odds_ratio,
+    p_value,
+    focal_prop,
+    ref_prop,
+    focal_outliers,
+    focal_non_outliers,
+    ref_outliers,
+    ref_non_outliers
+  ) %>%
+  arrange(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
+  pivot_wider(
+    names_from = enrichment_model,
+    values_from = c(log_odds_ratio, p_value, focal_prop, ref_prop, focal_outliers, focal_non_outliers, ref_outliers, ref_non_outliers),
+    names_sep = "__"
+  ) %>%
+  mutate(
+    noisy_filter_abs_log_or_change = abs(log_odds_ratio__HighConfidence) - abs(log_odds_ratio__AllCalls),
+    noisy_filter_log_or_change = log_odds_ratio__HighConfidence - log_odds_ratio__AllCalls,
+    noisy_filter_fisher_p_change = p_value__AllCalls - p_value__HighConfidence,
+    noisy_filter_enrichment_improved = noisy_filter_abs_log_or_change > 0 & sign(log_odds_ratio__HighConfidence) == sign(log_odds_ratio__AllCalls),
+    noisy_filter_stronger_only_if_same_direction = noisy_filter_abs_log_or_change > 0,
+    noisy_filter_fisher_improved = p_value__HighConfidence < p_value__AllCalls
+  ) %>%
+  select(
+    type,
+    focal_lower_bound,
+    reference_lower_bound,
+    all_calls_log_odds_ratio = log_odds_ratio__AllCalls,
+    high_confidence_log_odds_ratio = log_odds_ratio__HighConfidence,
+    all_calls_fisher_p = p_value__AllCalls,
+    high_confidence_fisher_p = p_value__HighConfidence,
+    noisy_filter_abs_log_or_change,
+    noisy_filter_log_or_change,
+    noisy_filter_fisher_p_change,
+    noisy_filter_enrichment_improved,
+    noisy_filter_fisher_improved,
+    all_calls_focal_outliers = focal_outliers__AllCalls,
+    high_confidence_focal_outliers = focal_outliers__HighConfidence,
+    all_calls_focal_outlier_rate = focal_prop__AllCalls,
+    high_confidence_focal_outlier_rate = focal_prop__HighConfidence,
+    all_calls_ref_outlier_rate = ref_prop__AllCalls,
+    high_confidence_ref_outlier_rate = ref_prop__HighConfidence,
+    all_calls_focal_non_outliers = focal_non_outliers__AllCalls,
+    high_confidence_focal_non_outliers = focal_non_outliers__HighConfidence,
+    all_calls_ref_outliers = ref_outliers__AllCalls,
+    high_confidence_ref_outliers = ref_outliers__HighConfidence,
+    all_calls_ref_non_outliers = ref_non_outliers__AllCalls,
+    high_confidence_ref_non_outliers = ref_non_outliers__HighConfidence
+  ) %>%
+  arrange(type, focal_lower_bound, reference_lower_bound)
+
+OutlierEnrichmentNoisyFilterImpact %>%
+  write_tsv("QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv")
 
 if (OutlierPermutationIterations > 0) {
   message("Computing outlier enrichment permutation null benchmark for AllCalls only.")
