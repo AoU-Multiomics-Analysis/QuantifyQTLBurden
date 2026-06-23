@@ -98,10 +98,18 @@ import "CleanQTLBurden.wdl" as clean
     File? QTLGeneBurdenQC_ReasonCounts = QTLBurdenQC.QTLGeneBurdenQC_ReasonCounts
     File? QTLGeneBurdenQC_GeneSetMedianImpact = QTLBurdenQC.QTLGeneBurdenQC_GeneSetMedianImpact
     File? QTLBurdenOutlierEnrichment = QTLBurdenQC.QTLBurdenOutlierEnrichment
-    File? QTLBurdenMedianGenesPerBin = QTLBurdenQC.QTLBurdenMedianGenesPerBin 
-    File? QTLBurdenMedianGenesPerBinByGeneSet = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet
-    File? QTLBurdenMedianGenesPerBinDosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinDosageNoisyFiltered
-    File? QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBin_AllCalls = QTLBurdenQC.QTLBurdenMedianGenesPerBin_AllCalls
+    File? QTLBurdenMedianGenesPerBin_HighConfidence = QTLBurdenQC.QTLBurdenMedianGenesPerBin_HighConfidence
+    File? QTLBurdenMedianGenesPerBin_HighKORemoved = QTLBurdenQC.QTLBurdenMedianGenesPerBin_HighKORemoved
+    File? QTLBurdenMedianGenesPerBinByGeneSet_AllCalls = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_AllCalls
+    File? QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence
+    File? QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved
+    File? QTLBurdenMedianGenesPerBin_AllCalls_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBin_AllCalls_DosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBin_HighConfidence_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBin_HighConfidence_DosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBin_HighKORemoved_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBin_HighKORemoved_DosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBinByGeneSet_AllCalls_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_AllCalls_DosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence_DosageNoisyFiltered
+    File? QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered
     File? QTLBurdenOutlierEnrichmentPermutation = QTLBurdenQC.QTLBurdenOutlierEnrichmentPermutation
     File? QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
 

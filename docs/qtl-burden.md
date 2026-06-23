@@ -136,6 +136,8 @@ Important raw burden columns include:
 
 When `AnnotateBurden = true`, the workflow can also emit:
 
+Legacy unsuffixed median-bin outputs (`QTLBurdenMedianGenesPerBin.tsv`, `QTLBurdenMedianGenesPerBinByGeneSet.tsv`, and dosage-filtered variants) are no longer produced; use the suffixed per-model outputs below.
+
 | Output | Description |
 | --- | --- |
 | `QTLBurdenSummary.cleaned.tsv.gz` | Annotated burden table. |

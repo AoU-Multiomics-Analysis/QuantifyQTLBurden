@@ -94,10 +94,18 @@ task ComputeQTLBurdenMedianGenesPerBin {
   }
 
   output {
-    File qtl_burden_median_genes_per_bin = "QTLBurdenMedianGenesPerBin.tsv"
-    File qtl_burden_median_genes_per_bin_by_gene_set = "QTLBurdenMedianGenesPerBinByGeneSet.tsv"
-    File qtl_burden_median_genes_per_bin_dosage = "QTLBurdenMedianGenesPerBin_DosageNoisyFiltered.tsv"
-    File qtl_burden_median_genes_per_bin_by_gene_set_dosage = "QTLBurdenMedianGenesPerBinByGeneSet_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin_all_calls = "QTLBurdenMedianGenesPerBin_AllCalls.tsv"
+    File qtl_burden_median_genes_per_bin_high_confidence = "QTLBurdenMedianGenesPerBin_HighConfidence.tsv"
+    File qtl_burden_median_genes_per_bin_high_ko_removed = "QTLBurdenMedianGenesPerBin_HighKORemoved.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set_all_calls = "QTLBurdenMedianGenesPerBinByGeneSet_AllCalls.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set_high_confidence = "QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set_high_ko_removed = "QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved.tsv"
+    File qtl_burden_median_genes_per_bin_dosage_all_calls = "QTLBurdenMedianGenesPerBin_AllCalls_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin_dosage_high_confidence = "QTLBurdenMedianGenesPerBin_HighConfidence_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin_dosage_high_ko_removed = "QTLBurdenMedianGenesPerBin_HighKORemoved_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set_dosage_all_calls = "QTLBurdenMedianGenesPerBinByGeneSet_AllCalls_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set_dosage_high_confidence = "QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence_DosageNoisyFiltered.tsv"
+    File qtl_burden_median_genes_per_bin_by_gene_set_dosage_high_ko_removed = "QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered.tsv"
   }
 }
 
@@ -198,7 +206,7 @@ workflow QTLBurdenQC {
   call PlotQTLBurdenQC {
     input:
       QTLGeneBurdenQC = ComputeQTLBurdenQC.qtl_gene_burden_qc,
-      QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set,
+      QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_all_calls,
       QCPlotPrefix = input_qc_plot_prefix
   }
 
@@ -207,10 +215,18 @@ workflow QTLBurdenQC {
     File QTLGeneBurdenQC = ComputeQTLBurdenQC.qtl_gene_burden_qc
     File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.qtl_gene_burden_status_list
     File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.qtl_burden_outlier_enrichment
-    File QTLBurdenMedianGenesPerBin = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin
-    File QTLBurdenMedianGenesPerBinByGeneSet = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set
-    File QTLBurdenMedianGenesPerBinDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_dosage
-    File QTLBurdenMedianGenesPerBinByGeneSetDosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_dosage
+    File QTLBurdenMedianGenesPerBin_AllCalls = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_all_calls
+    File QTLBurdenMedianGenesPerBin_HighConfidence = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_high_confidence
+    File QTLBurdenMedianGenesPerBin_HighKORemoved = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_high_ko_removed
+    File QTLBurdenMedianGenesPerBinByGeneSet_AllCalls = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_all_calls
+    File QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_high_confidence
+    File QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_high_ko_removed
+    File QTLBurdenMedianGenesPerBin_AllCalls_DosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_dosage_all_calls
+    File QTLBurdenMedianGenesPerBin_HighConfidence_DosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_dosage_high_confidence
+    File QTLBurdenMedianGenesPerBin_HighKORemoved_DosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_dosage_high_ko_removed
+    File QTLBurdenMedianGenesPerBinByGeneSet_AllCalls_DosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_dosage_all_calls
+    File QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence_DosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_dosage_high_confidence
+    File QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered = ComputeQTLBurdenMedianGenesPerBin.qtl_burden_median_genes_per_bin_by_gene_set_dosage_high_ko_removed
     File QTLBurdenOutlierEnrichmentPermutation = ComputeQTLBurdenOutlierEnrichment.qtl_burden_outlier_enrichment_permutation
     File QTLGeneBurdenQC_StatusByGeneType = PlotQTLBurdenQC.qc_plot_status_by_gene_type
     File QTLGeneBurdenQC_StatusOverall = PlotQTLBurdenQC.qc_plot_status_overall

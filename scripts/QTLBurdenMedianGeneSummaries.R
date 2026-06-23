@@ -115,6 +115,5 @@ write_median_gene_summaries(
   model_label = "HighKORemoved",
   output_suffix = "HighKORemoved",
   coding_variant_genes = CodingVariantGenes,
-  dominant_variant_warn_genes = DominantVariantWarnGenes,
-  write_legacy_outputs = TRUE
+  dominant_variant_warn_genes = DominantVariantWarnGenes
 )
