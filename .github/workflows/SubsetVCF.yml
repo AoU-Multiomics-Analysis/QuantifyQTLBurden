@@ -36,7 +36,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./envs/QuantifyQTLBurden/SubsetVCF
+          file: ./envs//SubsetVCF/Dockefile
           push: True 
           tags: |
             ${{ steps.meta.outputs.tags }}
