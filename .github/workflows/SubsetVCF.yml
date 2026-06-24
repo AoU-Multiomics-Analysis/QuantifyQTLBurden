@@ -6,7 +6,7 @@ on:
     branches: [ "main" ]
     paths:
       - 'envs/SubsetVCF/Dockerfile'
-      - '.github/SubsetVCF.yml'
+      - '.github/workflows/SubsetVCF.yml'
 
 jobs:
   build_and_push:
