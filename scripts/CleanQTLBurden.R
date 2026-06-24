@@ -112,13 +112,25 @@ if (HasExpressionZscores) {
 HasProteomicsZscores <- !is.null(PathProteomicsZscores) && PathProteomicsZscores != ""
 if (HasProteomicsZscores) {
   message("Loading proteomics z scores")
-  ProteomicsZscores <- fread(PathProteomicsZscores) %>%
+  ProteomicsRaw <- fread(PathProteomicsZscores)
+  ProteomicsZscoreColumns <- setdiff(names(ProteomicsRaw), "sample_id")
+  ProteomicsColumnMap <- tibble(ProteomicsColumn = ProteomicsZscoreColumns) %>%
+    separate(
+      col = ProteomicsColumn,
+      into = c("ProteinID", "pid"),
+      sep = "_",
+      extra = "merge",
+      fill = "right"
+    ) %>%
+    mutate(pid = str_remove(pid, '\\..*'))
+
+  ProteomicsZscores <- ProteomicsRaw %>%
       pivot_longer(
           cols = -sample_id,
-          names_to = c("ProteinID", "pid"),
-          names_pattern = "^(.*)_([^_]+)$",
+          names_to = "ProteomicsColumn",
           values_to = "ObservedProteomicsZ"
       ) %>%
+      left_join(ProteomicsColumnMap, by = "ProteomicsColumn") %>%
       mutate(
         pid = str_remove(pid, '\\..*'),
         ObservedProteomicsZ = as.numeric(ObservedProteomicsZ)
