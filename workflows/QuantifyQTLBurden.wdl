@@ -11,7 +11,7 @@ import "CleanQTLBurden.wdl" as clean
     File VCF
     File IndexVCF
     File AlleleFrequencies
-    File ExpressionZscores
+    File? ExpressionZscores
     File AncestryAssignments
     Int GenesPerShard = 500
     Boolean AnnotateBurden = true

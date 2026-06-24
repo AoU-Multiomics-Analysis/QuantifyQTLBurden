@@ -117,6 +117,15 @@ DominantVariantWarnThreshold <- opt$DominantVariantWarnThreshold
 
 message('Loading cleaned burden')
 QTLBurdenZscores <- fread(opt$CleanedQTLBurden)
+if (!all(c("ObservedZ", "UpOutlier", "DownOutlier") %in% names(QTLBurdenZscores))) {
+  message("Expression outlier annotations are missing; proceeding with placeholder NA columns for QC summaries.")
+  QTLBurdenZscores <- QTLBurdenZscores %>%
+    mutate(
+      ObservedZ = if ("ObservedZ" %in% names(.)) ObservedZ else NA_real_,
+      UpOutlier = if ("UpOutlier" %in% names(.)) UpOutlier else as.logical(NA),
+      DownOutlier = if ("DownOutlier" %in% names(.)) DownOutlier else as.logical(NA)
+    )
+}
 
 message('Loading aFC data')
 aFC <- fread(opt$aFC)

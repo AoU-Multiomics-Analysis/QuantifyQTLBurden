@@ -4,7 +4,7 @@ task CleanBurdenData {
     input {
         File MergedQTLBurden
         File AlleleFrequencies
-        File ExpressionZscores 
+        File? ExpressionZscores 
         File aFC
         File AncestryAssignments
         File eQTLSusie
@@ -16,7 +16,7 @@ task CleanBurdenData {
     Rscript /tmp/CleanQTLBurden.R \
         --QTLBurden ~{MergedQTLBurden} \
         --AlleleFrequencies ~{AlleleFrequencies} \
-        --ExpressionZscores ~{ExpressionZscores} \
+        ~{if defined(ExpressionZscores) then "--ExpressionZscores " + ExpressionZscores else ""} \
         --eQTLSusie ~{eQTLSusie} \
         --aFC ~{aFC} \
         --GTF ~{GTF} \
@@ -42,7 +42,7 @@ workflow CleanQTLBurdenTask {
   input {
     File MergedQTLBurden
     File AlleleFrequencies
-    File ExpressionZscores
+    File? ExpressionZscores
     File aFC
     File AncestryAssignments
     File eQTLSusie

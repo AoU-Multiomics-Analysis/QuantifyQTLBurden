@@ -89,25 +89,42 @@ AlleleFrequencyDf <- fread(PathAlleleFrequencies)
 message("Loading aFC data")
 aFC <- fread(PathaFC)
 
-message("Loading expression z scores")
-ExpressionZscores <- fread(PathExpressionZscores) %>%
-    pivot_longer(
-        cols = -sample_id,
-        names_to = "pid",
-        values_to = "ObservedZ"
-    )
+HasExpressionZscores <- !is.null(PathExpressionZscores) && PathExpressionZscores != ""
+if (HasExpressionZscores) {
+  message("Loading expression z scores")
+  ExpressionZscores <- fread(PathExpressionZscores) %>%
+      pivot_longer(
+          cols = -sample_id,
+          names_to = "pid",
+          values_to = "ObservedZ"
+      ) %>%
+      mutate(ObservedZ = as.numeric(ObservedZ))
+} else {
+  message("No expression z scores provided; skipping observed-expression outlier annotations.")
+}
 
 message("Loading burden data and merging")
 QTLBurdenMerge <- fread(BurdenPath) %>%
     left_join(AncestryDf, by = c("sample" = "research_id")) %>%
     mutate(gene_id = str_remove(pid,'\\..*')) %>%
     left_join(GeneTypes,by = 'gene_id') %>%
-    mutate(CausalCodingVariantPresent = pid %in% CodingVariantGenes) %>% 
-    left_join(ExpressionZscores, by = c("pid", "sample" = "sample_id")) %>%
-    mutate(
+    mutate(CausalCodingVariantPresent = pid %in% CodingVariantGenes) %>%
+    {
+      if (HasExpressionZscores) {
+        left_join(., ExpressionZscores, by = c("pid", "sample" = "sample_id")) %>%
+          mutate(
             UpOutlier = ObservedZ > 4,
             DownOutlier = ObservedZ < -4
-        ) 
+          )
+      } else {
+        mutate(
+          .,
+          ObservedZ = as.numeric(NA_real_),
+          UpOutlier = as.logical(NA),
+          DownOutlier = as.logical(NA)
+        )
+      }
+    }
 
 if (!"burden_probability_loss50" %in% names(QTLBurdenMerge)) {
   QTLBurdenMerge$burden_probability_loss50 <- NA_real_

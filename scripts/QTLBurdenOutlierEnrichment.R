@@ -36,6 +36,80 @@ message("Loading cleaned burden")
 QTLBurdenFiltered_AllCalls <- fread(opt$CleanedQTLBurden) %>%
   filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation))
 
+has_expression_outlier_columns <- all(c("UpOutlier", "DownOutlier") %in% names(QTLBurdenFiltered_AllCalls))
+if (!has_expression_outlier_columns) {
+  message("Expression outlier columns are missing; skipping outlier enrichment and permutation outputs.")
+
+  OutlierEnrichmentsRefBin <- tibble(
+    enrichment_model = character(),
+    type = character(),
+    focal_lower_bound = numeric(),
+    reference_lower_bound = numeric(),
+    focal_outliers = integer(),
+    focal_non_outliers = integer(),
+    ref_outliers = integer(),
+    ref_non_outliers = integer(),
+    focal_prop = double(),
+    ref_prop = double(),
+    odds_ratio = double(),
+    log_odds_ratio = double(),
+    se_log_or = double(),
+    ci_low = double(),
+    ci_high = double(),
+    p_value = double()
+  )
+  OutlierEnrichmentsRefBin %>%
+    write_tsv("QTLBurdenOutlierEnrichment.tsv")
+
+  OutlierEnrichmentNoisyFilterImpact <- tibble(
+    type = character(),
+    focal_lower_bound = numeric(),
+    reference_lower_bound = numeric(),
+    all_calls_log_odds_ratio = double(),
+    high_confidence_log_odds_ratio = double(),
+    all_calls_fisher_p = double(),
+    high_confidence_fisher_p = double(),
+    noisy_filter_abs_log_or_change = double(),
+    noisy_filter_log_or_change = double(),
+    noisy_filter_fisher_p_change = double(),
+    noisy_filter_enrichment_improved = logical(),
+    noisy_filter_fisher_improved = logical(),
+    all_calls_focal_outliers = integer(),
+    high_confidence_focal_outliers = integer(),
+    all_calls_focal_outlier_rate = double(),
+    high_confidence_focal_outlier_rate = double(),
+    all_calls_ref_outlier_rate = double(),
+    high_confidence_ref_outlier_rate = double(),
+    all_calls_focal_non_outliers = integer(),
+    high_confidence_focal_non_outliers = integer(),
+    all_calls_ref_outliers = integer(),
+    high_confidence_ref_outliers = integer(),
+    all_calls_ref_non_outliers = integer(),
+    high_confidence_ref_non_outliers = integer()
+  )
+  OutlierEnrichmentNoisyFilterImpact %>%
+    write_tsv("QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv")
+
+  OutlierEnrichmentPermutation <- tibble(
+    enrichment_model = character(),
+    type = character(),
+    focal_lower_bound = numeric(),
+    reference_lower_bound = numeric(),
+    permutation_count = integer(),
+    median_log_odds_ratio = double(),
+    q25_log_odds_ratio = double(),
+    q75_log_odds_ratio = double(),
+    se_null_log_odds_ratio = double(),
+    mean_log_odds_ratio = double(),
+    empirical_p_greater = double(),
+    empirical_p_two_sided = double()
+  )
+  OutlierEnrichmentPermutation %>%
+    write_tsv("QTLBurdenOutlierEnrichmentPermutation.tsv")
+
+  quit(save = "no", status = 0)
+}
+
 message("Computing outlier enrichment")
 
 thresholds <- QTLBurdenFiltered_AllCalls %>%
