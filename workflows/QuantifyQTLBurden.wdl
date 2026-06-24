@@ -20,7 +20,6 @@ import "CleanQTLBurden.wdl" as clean
     File eQTLSusie
     Float LossThreshold = -0.5849625007
     Float GainThreshold = 0.5849625007
-    String BurdenDirection = "both"
     String VariantEffectSEColumn = "auto"
     Float BurdenTailProbability = 0.9
     Int OutlierPermutationIterations = 200
@@ -44,7 +43,6 @@ import "CleanQTLBurden.wdl" as clean
       GenesPerShard = GenesPerShard,
       LossThreshold = LossThreshold,
       GainThreshold = GainThreshold,
-      BurdenDirection = BurdenDirection,
       VariantEffectSEColumn = VariantEffectSEColumn
   }
 

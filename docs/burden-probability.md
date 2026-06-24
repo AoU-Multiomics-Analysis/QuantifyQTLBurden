@@ -81,10 +81,7 @@ From one burden run, for each row (sample, gene):
 
 - `burden_probability_loss50` is `P(loss)`.
 - `burden_probability_gain50` is `P(gain)`.
-- `burden_probability` is direction-specific:
-  - if `BurdenDirection = loss` / `deletion`, it equals the loss tail probability `P(loss)`
-  - if `BurdenDirection = gain` / `duplication`, it equals the gain tail probability `P(gain)`
-  - if `BurdenDirection = both`, it is currently set to the loss tail probability (`P(loss)`)
+- `burden_probability` is fixed to the loss-tail probability `P(loss)` in the current workflow wiring.
 
 In the cleaning step, quality flags and downstream weighted summaries use:
 

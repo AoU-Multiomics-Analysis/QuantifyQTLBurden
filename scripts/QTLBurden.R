@@ -67,8 +67,7 @@ compute_burden_tail_probability <- function(beta, beta_se, dosage, threshold = l
 }
 
 compute_load_metrics <- function(beta, G, effect_threshold = NULL, beta_se = NULL,
-                                loss_threshold = log2(0.5), gain_threshold = log2(1.5),
-                                burden_direction = c("deletion", "duplication", "both")) {
+                                loss_threshold = log2(0.5), gain_threshold = log2(1.5)) {
   G <- as.matrix(G)
 
   if (length(beta) != nrow(G)) {
@@ -148,8 +147,6 @@ compute_load_metrics <- function(beta, G, effect_threshold = NULL, beta_se = NUL
     }
   }
 
-  burden_direction <- match.arg(burden_direction, c("deletion", "duplication", "both"))
-
   burden_deletion <- compute_burden_tail_probability(
     beta = beta_filled,
     beta_se = beta_se,
@@ -165,23 +162,11 @@ compute_load_metrics <- function(beta, G, effect_threshold = NULL, beta_se = NUL
     direction = "duplication"
   )
 
-  burden_probability <- if (burden_direction == "duplication") {
-    burden_overexpression$p
-  } else {
-    burden_deletion$p
-  }
+  burden_probability <- burden_deletion$p
   burden_probability_deletion50 <- burden_deletion$p
   burden_probability_duplication50 <- burden_overexpression$p
-  burden_mean <- if (burden_direction == "duplication") {
-    burden_overexpression$mean
-  } else {
-    burden_deletion$mean
-  }
-  burden_sd <- if (burden_direction == "duplication") {
-    burden_overexpression$sd
-  } else {
-    burden_deletion$sd
-  }
+  burden_mean <- burden_deletion$mean
+  burden_sd <- burden_deletion$sd
 
   # signed contributions
   contrib <- beta_filled * G_filled
@@ -286,8 +271,7 @@ VCFCleaned
     
 }
 ComputeQTLBurden <- function(ChromList, PosList, BetaList, VariantList, VCF, SEList = NULL,
-                             loss_threshold = log2(0.5), gain_threshold = log2(1.5),
-                             burden_direction = "both") {
+                             loss_threshold = log2(0.5), gain_threshold = log2(1.5)) {
     require(bedr)
     
     VariantBeta <- data.frame(variant = VariantList,Beta=BetaList)
@@ -306,8 +290,7 @@ ComputeQTLBurden <- function(ChromList, PosList, BetaList, VariantList, VCF, SEL
       G = GenotypeDataSorted,
       beta_se = SEList,
       loss_threshold = loss_threshold,
-      gain_threshold = gain_threshold,
-      burden_direction = burden_direction
+      gain_threshold = gain_threshold
     )
     QTLBurden
 }
@@ -324,13 +307,11 @@ option_list <- list(
                         help="Posterior loss threshold on total log2 burden. Default: log2(0.5) (50% decrease).", metavar = "type"),
     optparse::make_option(c("--GainThreshold"), type="double", default=NA,
                         help="Posterior gain threshold on total log2 burden. Default: log2(1.5) (+50% increase).", metavar = "type"),
-    optparse::make_option(c("--BurdenDirection"), type="character", default="both",
-                        help="Direction for posterior scoring: loss, gain, or both. Default: both", metavar = "type"),
     optparse::make_option(c("--GenotypeData"), type="character", default=NULL,
                         help="VCF file to be queried (ideally this is a vcf that has just been subset to the aFC variants)", metavar = "type"),
     optparse::make_option(c("--OutputPrefix"), type="character", default=NULL,
                         help="VCF file to be queried (ideally this is a vcf that has just been subset to the aFC variants)", metavar = "type")
-    )
+)
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
 aFCPath <- opt$AllelicFoldChangeData
@@ -346,21 +327,6 @@ GainThreshold <- if (is.finite(opt$GainThreshold)) {
   opt$GainThreshold
 } else {
   log2(1.5)
-}
-normalize_direction <- function(x) {
-  if (x %in% c("loss", "deletion")) {
-    "deletion"
-  } else if (x %in% c("gain", "duplication")) {
-    "duplication"
-  } else {
-    "both"
-  }
-}
-
-BurdenDirection <- if (opt$BurdenDirection %in% c("deletion", "duplication", "loss", "gain", "both")) {
-  normalize_direction(opt$BurdenDirection)
-} else {
-  "both"
 }
 ######## RUN QTL BURDEN ANALYSIS ##########
 aFC <- fread(aFCPath)
@@ -383,7 +349,6 @@ QTLBurden <- aFC %>%
         SEList = se_vec,
         loss_threshold = LossThreshold,
         gain_threshold = GainThreshold,
-        burden_direction = BurdenDirection
       )
     })
 QTLBurden %>% write_tsv(OutputName)

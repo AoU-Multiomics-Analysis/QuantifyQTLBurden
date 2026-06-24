@@ -111,7 +111,6 @@ task QuantifyQTLBurden {
         File IndexVCF
         Float LossThreshold = -0.5849625007
         Float GainThreshold = 0.5849625007
-        String BurdenDirection = "both"
         String VariantEffectSEColumn = "auto"
     }
 
@@ -122,7 +121,6 @@ task QuantifyQTLBurden {
         --VariantEffectSEColumn ~{VariantEffectSEColumn} \
         --LossThreshold ~{LossThreshold} \
         --GainThreshold ~{GainThreshold} \
-        --BurdenDirection ~{BurdenDirection} \
         --GenotypeData ~{VCF} \
         --OutputPrefix ~{shard_base}
     >>>
@@ -182,7 +180,6 @@ workflow QuantifyQTLBurdenCore {
     Int GenesPerShard = 500
     Float LossThreshold = -0.5849625007
     Float GainThreshold = 0.5849625007
-    String BurdenDirection = "both"
     String VariantEffectSEColumn = "auto"
   }
 
@@ -202,7 +199,6 @@ workflow QuantifyQTLBurdenCore {
         IndexVCF = IndexVCF,
         LossThreshold = LossThreshold,
         GainThreshold = GainThreshold,
-        BurdenDirection = BurdenDirection,
         VariantEffectSEColumn = VariantEffectSEColumn
     }
   }

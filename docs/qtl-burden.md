@@ -57,7 +57,6 @@ Inputs:
 | `IndexVCF` | File | Index for `VCF`, typically `.tbi`. |
 | `LossThreshold` | Float | Log2 cutoff for loss calls. Default: `-0.5849625007` (50% decrease). |
 | `GainThreshold` | Float | Log2 cutoff for gain calls. Default: `0.5849625007` (+50%). |
-| `BurdenDirection` | String | `deletion`, `duplication`, or `both` (legacy aliases `loss`/`gain`). Default: `both`. |
 | `BurdenTailProbability` | Float | Tail-probability cutoff used to flag low-confidence extreme calls (`is_noisy_extreme_call`) in outputs. Default: `0.9`. |
 | `OutlierPermutationIterations` | Int | Number of permutations for outlier enrichment benchmarking (applies to the cleaning/annotation step). Default: `200`. |
 | `VariantEffectSEColumn` | String | Optional column name for log2(aFC) standard error (or `auto`). |
@@ -128,7 +127,7 @@ Important raw burden columns include:
 | `is_dosage_extreme_call` | TRUE when the centered effect is in an extreme dosage-driven bin (`<= -50%` or `>= 50%`). |
 | `burden_mean` | Analytic mean total log2 burden for the active direction. |
 | `burden_sd` | Analytic SD of the active directional burden. |
-| `burden_probability` | Probabilistic extreme-expression score (one-sided tail), based on `LossThreshold`, `GainThreshold`, and `BurdenDirection` behavior. |
+| `burden_probability` | Probabilistic extreme-expression score (one-sided tail), based on `LossThreshold` (loss-tail, consistent with fixed both-mode behavior). |
 | `burden_probability_loss50` | Loss tail probability `P(L < LossThreshold)`. |
 | `burden_probability_gain50` | Gain tail probability `P(L > GainThreshold)`. |
 | `n_contributing_variants` | Number of variants with nonzero contribution. |
