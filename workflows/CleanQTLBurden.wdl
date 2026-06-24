@@ -4,7 +4,8 @@ task CleanBurdenData {
     input {
         File MergedQTLBurden
         File AlleleFrequencies
-        File? ExpressionZscores 
+        File? ExpressionZscores
+        File? ProteomicsZscores
         File aFC
         File AncestryAssignments
         File eQTLSusie
@@ -17,6 +18,7 @@ task CleanBurdenData {
         --QTLBurden ~{MergedQTLBurden} \
         --AlleleFrequencies ~{AlleleFrequencies} \
         ~{if defined(ExpressionZscores) then "--ExpressionZscores " + ExpressionZscores else ""} \
+        ~{if defined(ProteomicsZscores) then "--ProteomicsZscores " + ProteomicsZscores else ""} \
         --eQTLSusie ~{eQTLSusie} \
         --aFC ~{aFC} \
         --GTF ~{GTF} \
@@ -39,10 +41,11 @@ task CleanBurdenData {
 }
 
 workflow CleanQTLBurdenTask {
-  input {
+    input {
     File MergedQTLBurden
     File AlleleFrequencies
     File? ExpressionZscores
+    File? ProteomicsZscores
     File aFC
     File AncestryAssignments
     File eQTLSusie
@@ -55,6 +58,7 @@ workflow CleanQTLBurdenTask {
       MergedQTLBurden = MergedQTLBurden,
       AlleleFrequencies = AlleleFrequencies,
       ExpressionZscores = ExpressionZscores,
+      ProteomicsZscores = ProteomicsZscores,
       aFC = aFC,
       AncestryAssignments = AncestryAssignments,
       eQTLSusie = eQTLSusie,

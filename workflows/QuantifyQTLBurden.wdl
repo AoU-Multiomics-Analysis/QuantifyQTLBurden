@@ -12,6 +12,7 @@ import "CleanQTLBurden.wdl" as clean
     File IndexVCF
     File AlleleFrequencies
     File? ExpressionZscores
+    File? ProteomicsZscores
     File AncestryAssignments
     Int GenesPerShard = 500
     Boolean AnnotateBurden = true
@@ -53,6 +54,7 @@ import "CleanQTLBurden.wdl" as clean
         MergedQTLBurden = QuantifyCoreBurden.AggregatedQTLBurden,
         AlleleFrequencies = AlleleFrequencies,
         ExpressionZscores = ExpressionZscores,
+        ProteomicsZscores = ProteomicsZscores,
         aFC = aFCWeights,
         AncestryAssignments = AncestryAssignments,
         eQTLSusie = eQTLSusie,

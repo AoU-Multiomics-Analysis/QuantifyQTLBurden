@@ -126,6 +126,15 @@ if (!all(c("ObservedZ", "UpOutlier", "DownOutlier") %in% names(QTLBurdenZscores)
       DownOutlier = if ("DownOutlier" %in% names(.)) DownOutlier else as.logical(NA)
     )
 }
+if (!all(c("ObservedProteomicsZ", "UpProteomicsOutlier", "DownProteomicsOutlier") %in% names(QTLBurdenZscores))) {
+  message("Proteomics outlier annotations are missing; proceeding with placeholder NA columns for QC summaries.")
+  QTLBurdenZscores <- QTLBurdenZscores %>%
+    mutate(
+      ObservedProteomicsZ = if ("ObservedProteomicsZ" %in% names(.)) ObservedProteomicsZ else NA_real_,
+      UpProteomicsOutlier = if ("UpProteomicsOutlier" %in% names(.)) UpProteomicsOutlier else as.logical(NA),
+      DownProteomicsOutlier = if ("DownProteomicsOutlier" %in% names(.)) DownProteomicsOutlier else as.logical(NA)
+    )
+}
 
 message('Loading aFC data')
 aFC <- fread(opt$aFC)
@@ -191,6 +200,10 @@ QTLGeneBurdenQC <- QTLBurdenZscores %>%
     median_abs_observed_z = median(abs(ObservedZ), na.rm = TRUE),
     n_up_expression_outliers = sum(UpOutlier, na.rm = TRUE),
     n_down_expression_outliers = sum(DownOutlier, na.rm = TRUE),
+    max_abs_observed_proteomics_z = safe_max_abs(ObservedProteomicsZ),
+    median_abs_observed_proteomics_z = median(abs(ObservedProteomicsZ), na.rm = TRUE),
+    n_up_proteomics_outliers = sum(UpProteomicsOutlier, na.rm = TRUE),
+    n_down_proteomics_outliers = sum(DownProteomicsOutlier, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   left_join(aFCGeneQC, by = "pid") %>%

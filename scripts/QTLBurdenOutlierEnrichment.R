@@ -32,15 +32,27 @@ if (is.null(opt$CleanedQTLBurden)) {
 
 OutlierPermutationIterations <- opt$OutlierPermutationIterations
 
+safe_first <- function(x) {
+  if (length(x) == 0) {
+    NA_real_
+  } else {
+    x[[1]]
+  }
+}
+
 message("Loading cleaned burden")
 QTLBurdenFiltered_AllCalls <- fread(opt$CleanedQTLBurden) %>%
   filter(!is.na(PercentChangeBin), !is.na(CenteredEffectZPopulation))
 
+message("Checking available outlier annotations")
 has_expression_outlier_columns <- all(c("UpOutlier", "DownOutlier") %in% names(QTLBurdenFiltered_AllCalls))
-if (!has_expression_outlier_columns) {
-  message("Expression outlier columns are missing; skipping outlier enrichment and permutation outputs.")
+has_proteomics_outlier_columns <- all(c("UpProteomicsOutlier", "DownProteomicsOutlier") %in% names(QTLBurdenFiltered_AllCalls))
+
+if (!has_expression_outlier_columns && !has_proteomics_outlier_columns) {
+  message("No outlier annotation columns are present; skipping outlier enrichment and permutation outputs.")
 
   OutlierEnrichmentsRefBin <- tibble(
+    OutlierSource = character(),
     enrichment_model = character(),
     type = character(),
     focal_lower_bound = numeric(),
@@ -62,6 +74,7 @@ if (!has_expression_outlier_columns) {
     write_tsv("QTLBurdenOutlierEnrichment.tsv")
 
   OutlierEnrichmentNoisyFilterImpact <- tibble(
+    OutlierSource = character(),
     type = character(),
     focal_lower_bound = numeric(),
     reference_lower_bound = numeric(),
@@ -91,6 +104,7 @@ if (!has_expression_outlier_columns) {
     write_tsv("QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv")
 
   OutlierEnrichmentPermutation <- tibble(
+    OutlierSource = character(),
     enrichment_model = character(),
     type = character(),
     focal_lower_bound = numeric(),
@@ -114,8 +128,8 @@ message("Computing outlier enrichment")
 
 thresholds <- QTLBurdenFiltered_AllCalls %>%
   filter(gene_type == "protein_coding") %>%
-  group_by(PercentChangeBin) %>%
-  dplyr::count(DownOutlier) %>%
+  distinct(PercentChangeBin) %>%
+  filter(!is.na(PercentChangeBin)) %>%
   mutate(lower = extract_bin_lower_bound(PercentChangeBin)) %>%
   distinct(lower) %>%
   filter(!is.na(lower), lower != 0) %>%
@@ -130,24 +144,82 @@ QTLBurdenFiltered_HighKORemoved <- QTLBurdenFiltered_AllCalls %>%
   filter(sum(PercentChangeCenteredEffectPopulation < -50, na.rm = TRUE) < 100) %>%
   ungroup()
 
-OutlierEnrichmentsRefBin <- bind_rows(
+derive_enrichment <- function(df, model_label, outlier_source, down_col, up_col) {
+  df <- df %>%
+    mutate(
+      DownOutlier = .data[[down_col]],
+      UpOutlier = .data[[up_col]]
+    )
+
   compute_enrichment_for_model(
-    df = QTLBurdenFiltered_AllCalls,
-    model_label = "AllCalls",
+    df = df,
+    model_label = model_label,
     thresholds = thresholds
-  ),
-  compute_enrichment_for_model(
-    df = QTLBurdenFiltered_HighConfidence,
-    model_label = "HighConfidence",
-    thresholds = thresholds
-  ),
-  compute_enrichment_for_model(
-    df = QTLBurdenFiltered_HighKORemoved,
-    model_label = "HighKORemoved",
-    thresholds = thresholds
+  ) %>%
+    mutate(OutlierSource = outlier_source)
+}
+
+expression_enrichments <- if (has_expression_outlier_columns) {
+  bind_rows(
+    derive_enrichment(
+      df = QTLBurdenFiltered_AllCalls,
+      model_label = "AllCalls",
+      outlier_source = "Expression",
+      down_col = "DownOutlier",
+      up_col = "UpOutlier"
+    ),
+    derive_enrichment(
+      df = QTLBurdenFiltered_HighConfidence,
+      model_label = "HighConfidence",
+      outlier_source = "Expression",
+      down_col = "DownOutlier",
+      up_col = "UpOutlier"
+    ),
+    derive_enrichment(
+      df = QTLBurdenFiltered_HighKORemoved,
+      model_label = "HighKORemoved",
+      outlier_source = "Expression",
+      down_col = "DownOutlier",
+      up_col = "UpOutlier"
+    )
   )
-) %>% 
-  arrange(enrichment_model, type, focal_lower_bound)
+} else {
+  tibble()
+}
+
+proteomics_enrichments <- if (has_proteomics_outlier_columns) {
+  bind_rows(
+    derive_enrichment(
+      df = QTLBurdenFiltered_AllCalls,
+      model_label = "AllCalls",
+      outlier_source = "Proteomics",
+      down_col = "DownProteomicsOutlier",
+      up_col = "UpProteomicsOutlier"
+    ),
+    derive_enrichment(
+      df = QTLBurdenFiltered_HighConfidence,
+      model_label = "HighConfidence",
+      outlier_source = "Proteomics",
+      down_col = "DownProteomicsOutlier",
+      up_col = "UpProteomicsOutlier"
+    ),
+    derive_enrichment(
+      df = QTLBurdenFiltered_HighKORemoved,
+      model_label = "HighKORemoved",
+      outlier_source = "Proteomics",
+      down_col = "DownProteomicsOutlier",
+      up_col = "UpProteomicsOutlier"
+    )
+  )
+} else {
+  tibble()
+}
+
+OutlierEnrichmentsRefBin <- bind_rows(
+  expression_enrichments,
+  proteomics_enrichments
+) %>%
+  arrange(OutlierSource, enrichment_model, type, focal_lower_bound)
 
 OutlierEnrichmentsRefBin %>% write_tsv("QTLBurdenOutlierEnrichment.tsv")
 
@@ -156,6 +228,7 @@ message("Comparing impact of removing noisy extreme calls from BurdenTailProbabi
 OutlierEnrichmentNoisyFilterImpact <- OutlierEnrichmentsRefBin %>%
   filter(enrichment_model %in% c("AllCalls", "HighConfidence")) %>%
   select(
+    OutlierSource,
     type,
     focal_lower_bound,
     reference_lower_bound,
@@ -169,8 +242,9 @@ OutlierEnrichmentNoisyFilterImpact <- OutlierEnrichmentsRefBin %>%
     ref_outliers,
     ref_non_outliers
   ) %>%
-  arrange(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
+  arrange(OutlierSource, type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
   pivot_wider(
+    id_cols = c(OutlierSource, type, focal_lower_bound, reference_lower_bound),
     names_from = enrichment_model,
     values_from = c(log_odds_ratio, p_value, focal_prop, ref_prop, focal_outliers, focal_non_outliers, ref_outliers, ref_non_outliers),
     names_sep = "__"
@@ -184,6 +258,7 @@ OutlierEnrichmentNoisyFilterImpact <- OutlierEnrichmentsRefBin %>%
     noisy_filter_fisher_improved = p_value__HighConfidence < p_value__AllCalls
   ) %>%
   select(
+    OutlierSource,
     type,
     focal_lower_bound,
     reference_lower_bound,
@@ -209,37 +284,58 @@ OutlierEnrichmentNoisyFilterImpact <- OutlierEnrichmentsRefBin %>%
     all_calls_ref_non_outliers = ref_non_outliers__AllCalls,
     high_confidence_ref_non_outliers = ref_non_outliers__HighConfidence
   ) %>%
-  arrange(type, focal_lower_bound, reference_lower_bound)
+  arrange(OutlierSource, type, focal_lower_bound, reference_lower_bound)
 
 OutlierEnrichmentNoisyFilterImpact %>%
   write_tsv("QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv")
 
+run_modality_permutation <- function(df, outlier_source, down_col, up_col) {
+  OutlierBenchmarkData_AllCalls <- df %>%
+    filter(gene_type == "protein_coding") %>%
+    select(PercentChangeBin, all_of(down_col), all_of(up_col)) %>%
+    mutate(
+      OutlierSource = outlier_source,
+      DownOutlier = .data[[down_col]],
+      UpOutlier = .data[[up_col]]
+    )
+
+  if (nrow(OutlierBenchmarkData_AllCalls) == 0) {
+    stop(sprintf("No protein_coding rows found for %s permutation benchmark.", outlier_source))
+  }
+
+  run_permutation_enrichment(
+    benchmark_data = OutlierBenchmarkData_AllCalls,
+    thresholds = thresholds,
+    n_perm = OutlierPermutationIterations
+  ) %>%
+    mutate(
+      OutlierSource = outlier_source,
+      enrichment_model = "AllCalls"
+    )
+}
+
 if (OutlierPermutationIterations > 0) {
   message("Computing outlier enrichment permutation null benchmark for AllCalls only.")
 
-  OutlierBenchmarkData_AllCalls <- QTLBurdenFiltered_AllCalls %>%
-    filter(gene_type == "protein_coding") %>%
-    select(PercentChangeBin, DownOutlier, UpOutlier)
-
-  if (nrow(OutlierBenchmarkData_AllCalls) == 0) {
-    stop("No protein_coding rows found for permutation benchmark.")
-  }
-
   OutlierPermutationNull <- bind_rows(
-    run_permutation_enrichment(
-      benchmark_data = OutlierBenchmarkData_AllCalls,
-      thresholds = thresholds,
-      n_perm = OutlierPermutationIterations
-    )
-  ) %>%
-    mutate(enrichment_model = "AllCalls")
+    if (has_expression_outlier_columns) {
+      run_modality_permutation(QTLBurdenFiltered_AllCalls, "Expression", "DownOutlier", "UpOutlier")
+    } else {
+      tibble()
+    },
+    if (has_proteomics_outlier_columns) {
+      run_modality_permutation(QTLBurdenFiltered_AllCalls, "Proteomics", "DownProteomicsOutlier", "UpProteomicsOutlier")
+    } else {
+      tibble()
+    }
+  )
 
   if (nrow(OutlierPermutationNull) == 0) {
     stop("Permutation engine returned zero rows.")
   }
 
   NullStats <- OutlierPermutationNull %>%
-    group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
+    group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model, OutlierSource) %>%
     summarize(
       permutation_count = dplyr::n(),
       median_log_odds_ratio = median(log_odds_ratio, na.rm = TRUE),
@@ -251,40 +347,40 @@ if (OutlierPermutationIterations > 0) {
     )
 
   EmpiricalP <- OutlierPermutationNull %>%
-    group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model) %>%
+    group_by(type, focal_lower_bound, reference_lower_bound, enrichment_model, OutlierSource) %>%
     summarize(
+      observed_log_or = safe_first(OutlierEnrichmentsRefBin$log_odds_ratio[
+        OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
+          OutlierEnrichmentsRefBin$type == type[1] &
+          OutlierEnrichmentsRefBin$OutlierSource == OutlierSource[1] &
+          OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
+          OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
+      ]),
       empirical_p_greater = (sum(
-        log_odds_ratio >= first(OutlierEnrichmentsRefBin$log_odds_ratio[
-          OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
-            OutlierEnrichmentsRefBin$type == type[1] &
-            OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
-            OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
-        ]
-      ), na.rm = TRUE) + 1) / (dplyr::n() + 1),
+        log_odds_ratio >= observed_log_or,
+        na.rm = TRUE
+      ) + 1) / (dplyr::n() + 1),
       empirical_p_two_sided = (sum(
-        abs(log_odds_ratio) >= abs(first(OutlierEnrichmentsRefBin$log_odds_ratio[
-          OutlierEnrichmentsRefBin$enrichment_model == enrichment_model[1] &
-            OutlierEnrichmentsRefBin$type == type[1] &
-            OutlierEnrichmentsRefBin$focal_lower_bound == focal_lower_bound[1] &
-            OutlierEnrichmentsRefBin$reference_lower_bound == reference_lower_bound[1]
-        ])),
+        abs(log_odds_ratio) >= abs(observed_log_or),
         na.rm = TRUE
       ) + 1) / (dplyr::n() + 1),
       .groups = "drop"
-    )
+    ) %>%
+    select(-observed_log_or)
 
   OutlierEnrichmentsRefBin <- OutlierEnrichmentsRefBin %>%
     left_join(
       NullStats,
-      by = c("type", "focal_lower_bound", "reference_lower_bound", "enrichment_model")
+      by = c("type", "focal_lower_bound", "reference_lower_bound", "enrichment_model", "OutlierSource")
     ) %>%
     left_join(
       EmpiricalP,
-      by = c("type", "focal_lower_bound", "reference_lower_bound", "enrichment_model")
+      by = c("type", "focal_lower_bound", "reference_lower_bound", "enrichment_model", "OutlierSource")
     )
 
   OutlierEnrichmentPermutation <- OutlierEnrichmentsRefBin %>%
     select(
+      OutlierSource,
       enrichment_model,
       type,
       focal_lower_bound,
@@ -311,6 +407,7 @@ if (OutlierPermutationIterations > 0) {
       empirical_p_two_sided = NA_real_
     ) %>%
     select(
+      OutlierSource,
       enrichment_model,
       type,
       focal_lower_bound,

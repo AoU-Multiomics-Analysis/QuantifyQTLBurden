@@ -63,6 +63,7 @@ Inputs:
 | `VariantEffectSEColumn` | String | Optional column name for log2(aFC) standard error (or `auto`). |
 | `AlleleFrequencies` | File | Allele-frequency table for expected burden and variance. |
 | `ExpressionZscores` | File? | Matrix of observed expression z scores. If omitted, observed-expression outlier annotation and outlier enrichment outputs are disabled/sparse. |
+| `ProteomicsZscores` | File? | Matrix of observed proteomics z scores. If omitted, proteomics outlier annotation and proteomics enrichment outputs are disabled/sparse. |
 | `AncestryAssignments` | File | Table mapping individuals to ancestry groups. |
 | `GTF` | File | Gene annotation file. |
 | `eQTLSusie` | File | Fine-mapping/SuSiE annotation table. |
@@ -102,6 +103,7 @@ Cleaning and annotation inputs should contain:
 | --- | --- |
 | `AlleleFrequencies` | `ID` plus one column per ancestry group. `ID` should match `sid`. |
 | `ExpressionZscores` | `sample_id` plus one column per `pid` (optional). |
+| `ProteomicsZscores` | `sample_id` plus one column per `pid` (optional; may be a subset of measured protein IDs). |
 | `AncestryAssignments` | `research_id`, `ancestry_pred_other`. |
 | `GTF` | Gene-level metadata convertible to `gene_id`, `gene_type`, and `gene_name`. |
 | `eQTLSusie` | `molecular_trait_id`, `pip`, and either `consequence` or boolean `frameshift` / `stop_gained` columns. |
@@ -165,9 +167,9 @@ Legacy unsuffixed median-bin outputs (`QTLBurdenMedianGenesPerBin.tsv`, `QTLBurd
 | `QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered.tsv` | By-gene-set noisy-filtered median table after high-KO removal. |
 | `QTLBurdenMedianGenesPerBin*` | Also includes `median_genes`, `q25_genes`, `q75_genes` (unweighted counts), and `median_weighted_genes`, `q25_weighted_genes`, `q75_weighted_genes` (weighted by `burden_tail_weight`: `P(loss-like)` for `<= -50`, `P(gain-like)` for `>= 50`, `1` otherwise). |
 | `QTLBurdenPerSampleGene.parquet` | Per-sample, per-gene burden table used for downstream medians and enrichment analyses. |
-| `QTLBurdenOutlierEnrichment.tsv` | Observed expression outlier enrichment by burden bin for three models: `AllCalls`, `HighConfidence`, and `HighKORemoved`. Empty (header-only) when expression z scores are not provided. |
-| `QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv` | Per-bin direct comparison of `AllCalls` vs `HighConfidence` (removing `is_noisy_extreme_call` within extreme bins), including change in log-odds ratio, Fisher p-value change, and contingency counts. Empty (header-only) when expression z scores are not provided. |
-| `QTLBurdenOutlierEnrichmentPermutation.tsv` | Permutation-based p-values and null odds-ratio summary for `AllCalls` only; other model rows are included with `NA` null fields. Empty (header-only) when expression z scores are not provided. |
+| `QTLBurdenOutlierEnrichment.tsv` | Observed expression and proteomics outlier enrichment by burden bin for three models: `AllCalls`, `HighConfidence`, and `HighKORemoved`, with modality included in output rows. Empty (header-only) when no outlier annotations are provided. |
+| `QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv` | Per-bin direct comparison of `AllCalls` vs `HighConfidence` (removing `is_noisy_extreme_call` within extreme bins), including change in log-odds ratio, Fisher p-value change, and contingency counts. Empty (header-only) when no outlier annotations are provided. |
+| `QTLBurdenOutlierEnrichmentPermutation.tsv` | Permutation-based p-values and null odds-ratio summary for `AllCalls` only; other model rows are included with `NA` null fields. Empty (header-only) when no outlier annotations are provided. |
 
 ## Scripts
 

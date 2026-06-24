@@ -27,6 +27,8 @@ option_list <- list(
                           help = "Allele frequency file"),
     optparse::make_option(c("--ExpressionZscores"), type = "character", default = NULL,
                           help = "Expression z-score matrix"),
+    optparse::make_option(c("--ProteomicsZscores"), type = "character", default = NULL,
+                          help = "Proteomics z-score matrix"),
     optparse::make_option(c("--aFC"), type = "character", default = NULL,
                           help = "Allelic fold change file"),
     optparse::make_option(c("--AncestryAssignments"), type = "character", default = NULL,
@@ -44,6 +46,7 @@ opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
 PathaFC <- opt$aFC
 PathAncestryAssignments <- opt$AncestryAssignments
 PathExpressionZscores <- opt$ExpressionZscores
+PathProteomicsZscores <- opt$ProteomicsZscores
 PathAlleleFrequencies <- opt$AlleleFrequencies
 BurdenPath <- opt$QTLBurden
 GTFPath <- opt$GTF
@@ -103,6 +106,20 @@ if (HasExpressionZscores) {
   message("No expression z scores provided; skipping observed-expression outlier annotations.")
 }
 
+HasProteomicsZscores <- !is.null(PathProteomicsZscores) && PathProteomicsZscores != ""
+if (HasProteomicsZscores) {
+  message("Loading proteomics z scores")
+  ProteomicsZscores <- fread(PathProteomicsZscores) %>%
+      pivot_longer(
+          cols = -sample_id,
+          names_to = "pid",
+          values_to = "ObservedProteomicsZ"
+      ) %>%
+      mutate(ObservedProteomicsZ = as.numeric(ObservedProteomicsZ))
+} else {
+  message("No proteomics z scores provided; skipping proteomics outlier annotations.")
+}
+
 message("Loading burden data and merging")
 QTLBurdenMerge <- fread(BurdenPath) %>%
     left_join(AncestryDf, by = c("sample" = "research_id")) %>%
@@ -110,7 +127,7 @@ QTLBurdenMerge <- fread(BurdenPath) %>%
     left_join(GeneTypes,by = 'gene_id') %>%
     mutate(CausalCodingVariantPresent = pid %in% CodingVariantGenes) %>%
     {
-      if (HasExpressionZscores) {
+      merged_expr <- if (HasExpressionZscores) {
         left_join(., ExpressionZscores, by = c("pid", "sample" = "sample_id")) %>%
           mutate(
             UpOutlier = ObservedZ > 4,
@@ -123,6 +140,22 @@ QTLBurdenMerge <- fread(BurdenPath) %>%
           UpOutlier = as.logical(NA),
           DownOutlier = as.logical(NA)
         )
+      }
+
+      if (HasProteomicsZscores) {
+        merged_expr %>%
+          left_join(ProteomicsZscores, by = c("pid", "sample" = "sample_id")) %>%
+          mutate(
+            UpProteomicsOutlier = ObservedProteomicsZ > 4,
+            DownProteomicsOutlier = ObservedProteomicsZ < -4
+          )
+      } else {
+        merged_expr %>%
+          mutate(
+            ObservedProteomicsZ = as.numeric(NA_real_),
+            UpProteomicsOutlier = as.logical(NA),
+            DownProteomicsOutlier = as.logical(NA)
+          )
       }
     }
 
