@@ -127,7 +127,6 @@ Important raw burden columns include:
 | `is_dosage_extreme_call` | TRUE when the centered effect is in an extreme dosage-driven bin (`<= -50%` or `>= 50%`). |
 | `burden_mean` | Analytic mean total log2 burden for the active direction. |
 | `burden_sd` | Analytic SD of the active directional burden. |
-| `burden_probability` | Probabilistic extreme-expression score (one-sided tail), based on `LossThreshold` (loss-tail, consistent with fixed both-mode behavior). |
 | `burden_probability_loss50` | Loss tail probability `P(L < LossThreshold)`. |
 | `burden_probability_gain50` | Gain tail probability `P(L > GainThreshold)`. |
 | `n_contributing_variants` | Number of variants with nonzero contribution. |

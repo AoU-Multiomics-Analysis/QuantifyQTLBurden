@@ -46,12 +46,12 @@ Positive `log2_aFC` values increase predicted expression, and negative values de
 
 The quantification model computes analytic, one-sided tail probabilities for each sample/gene from the per-individual total log2 burden:
 
-- [`docs/burden-probability.md`](docs/burden-probability.md) describes the exact formulas (`burden_probability_loss50`, `burden_probability_gain50`, `burden_probability`) and interpretation.
+- [`docs/burden-probability.md`](docs/burden-probability.md) describes the exact formulas (`burden_probability_loss50`, `burden_probability_gain50`) and interpretation.
 - In practice:
   - deletion/loss direction => `P(L <= loss_threshold)`
   - duplication/gain direction => `P(L >= gain_threshold)`
   - for each sample, this is the chance the dosage-weighted perturbation pushes the gene at least to the configured threshold, given the effect-size uncertainty (`log2_aFC` means and SEs).
-- `burden_probability` is fixed to the loss-tail probability in [`QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl), while both per-direction probabilities are always written as:
+- Both directional per-sample burden probabilities are written as:
     - `burden_probability_loss50`
     - `burden_probability_gain50`.
 

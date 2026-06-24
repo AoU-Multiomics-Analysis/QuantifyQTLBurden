@@ -162,7 +162,6 @@ compute_load_metrics <- function(beta, G, effect_threshold = NULL, beta_se = NUL
     direction = "duplication"
   )
 
-  burden_probability <- burden_deletion$p
   burden_probability_deletion50 <- burden_deletion$p
   burden_probability_duplication50 <- burden_overexpression$p
   burden_mean <- burden_deletion$mean
@@ -239,7 +238,6 @@ compute_load_metrics <- function(beta, G, effect_threshold = NULL, beta_se = NUL
     N_eff_down = N_eff_down,
     burden_mean = burden_mean,
     burden_sd = burden_sd,
-    burden_probability = burden_probability,
     burden_probability_loss50 = burden_probability_deletion50,
     burden_probability_gain50 = burden_probability_duplication50,
 
