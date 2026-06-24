@@ -115,15 +115,9 @@ if (HasProteomicsZscores) {
   ProteomicsZscores <- fread(PathProteomicsZscores) %>%
       pivot_longer(
           cols = -sample_id,
-          names_to = "ProteomicsGeneId",
+          names_to = c("ProteinID", "pid"),
+          names_pattern = "^(.*)_([^_]+)$",
           values_to = "ObservedProteomicsZ"
-      ) %>%
-      separate(
-        col = ProteomicsGeneId,
-        into = c("ProteinID", "pid"),
-        sep = "_",
-        extra = "merge",
-        fill = "right"
       ) %>%
       mutate(
         pid = str_remove(pid, '\\..*'),
