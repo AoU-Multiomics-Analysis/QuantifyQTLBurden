@@ -101,7 +101,10 @@ if (HasExpressionZscores) {
           names_to = "pid",
           values_to = "ObservedZ"
       ) %>%
-      mutate(ObservedZ = as.numeric(ObservedZ))
+      mutate(
+        pid = str_remove(pid, '\\..*'),
+        ObservedZ = as.numeric(ObservedZ)
+      )
 } else {
   message("No expression z scores provided; skipping observed-expression outlier annotations.")
 }
@@ -112,10 +115,20 @@ if (HasProteomicsZscores) {
   ProteomicsZscores <- fread(PathProteomicsZscores) %>%
       pivot_longer(
           cols = -sample_id,
-          names_to = "pid",
+          names_to = "ProteomicsGeneId",
           values_to = "ObservedProteomicsZ"
       ) %>%
-      mutate(ObservedProteomicsZ = as.numeric(ObservedProteomicsZ))
+      separate(
+        col = ProteomicsGeneId,
+        into = c("ProteinID", "pid"),
+        sep = "_",
+        extra = "merge",
+        fill = "right"
+      ) %>%
+      mutate(
+        pid = str_remove(pid, '\\..*'),
+        ObservedProteomicsZ = as.numeric(ObservedProteomicsZ)
+      )
 } else {
   message("No proteomics z scores provided; skipping proteomics outlier annotations.")
 }
@@ -128,7 +141,7 @@ QTLBurdenMerge <- fread(BurdenPath) %>%
     mutate(CausalCodingVariantPresent = pid %in% CodingVariantGenes) %>%
     {
       merged_expr <- if (HasExpressionZscores) {
-        left_join(., ExpressionZscores, by = c("pid", "sample" = "sample_id")) %>%
+        left_join(., ExpressionZscores, by = c("gene_id" = "pid", "sample" = "sample_id")) %>%
           mutate(
             UpOutlier = ObservedZ > 4,
             DownOutlier = ObservedZ < -4
@@ -144,7 +157,7 @@ QTLBurdenMerge <- fread(BurdenPath) %>%
 
       if (HasProteomicsZscores) {
         merged_expr %>%
-          left_join(ProteomicsZscores, by = c("pid", "sample" = "sample_id")) %>%
+          left_join(ProteomicsZscores, by = c("gene_id" = "pid", "sample" = "sample_id")) %>%
           mutate(
             UpProteomicsOutlier = ObservedProteomicsZ > 4,
             DownProteomicsOutlier = ObservedProteomicsZ < -4

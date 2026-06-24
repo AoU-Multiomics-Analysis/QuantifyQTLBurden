@@ -103,7 +103,7 @@ Cleaning and annotation inputs should contain:
 | --- | --- |
 | `AlleleFrequencies` | `ID` plus one column per ancestry group. `ID` should match `sid`. |
 | `ExpressionZscores` | `sample_id` plus one column per `pid` (optional). |
-| `ProteomicsZscores` | `sample_id` plus one column per `pid` (optional; may be a subset of measured protein IDs). |
+| `ProteomicsZscores` | `sample_id` plus one column per `<protein_id>_<gene_id[.version]>` (optional; may be a subset of measured proteins/genes). The gene portion is normalized by stripping version suffixes before join. |
 | `AncestryAssignments` | `research_id`, `ancestry_pred_other`. |
 | `GTF` | Gene-level metadata convertible to `gene_id`, `gene_type`, and `gene_name`. |
 | `eQTLSusie` | `molecular_trait_id`, `pip`, and either `consequence` or boolean `frameshift` / `stop_gained` columns. |
