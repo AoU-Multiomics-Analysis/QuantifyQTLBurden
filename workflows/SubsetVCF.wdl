@@ -12,32 +12,28 @@ task SubsetVCFTask {
     command <<<
     set -euo pipefail
 
-    INPUT_VCF=vcf_input.vcf.gz
+    INPUT_VCF=~{vcf_file}
     INPUT_VCF_INDEX=${INPUT_VCF}.tbi
+    TASK_INPUT_INDEX=~{OutputPrefix}.input.vcf.gz.tbi
     SUBSET_VCF=~{OutputPrefix}.vcf.gz
 
-    ln -s ~{vcf_file} ${INPUT_VCF}
     if [[ "~{vcf_index}" == "null" ]] || [[ "~{vcf_index}" == "" ]] || [[ "~{vcf_index}" == "\${}" ]] || [[ "~{vcf_index}" == *.csi ]]; then
-      # Index the symlinked input VCF on the local path.
-      bcftools index -t ${INPUT_VCF}
+      # Index the original input VCF path.
+      bcftools index -t "${INPUT_VCF}"
     else
-      # Align provided index to the temporary symlink name expected by bcftools.
-      ln -sfn ~{vcf_index} ${INPUT_VCF_INDEX}
+      # Align provided index to the basename expected by bcftools.
+      cp ~{vcf_index} "${INPUT_VCF_INDEX}"
     fi
 
-    # Keep a reusable tabix path for the input naming convention used in this task.
-    if [[ "~{vcf_index}" == "null" ]] || [[ "~{vcf_index}" == "" ]] || [[ "~{vcf_index}" == "\${}" ]] || [[ "~{vcf_index}" == *.csi ]]; then
-      ln -sfn ${INPUT_VCF_INDEX} ~{OutputPrefix}.input.vcf.gz.tbi
-    else
-      ln -sfn ${INPUT_VCF_INDEX} ~{OutputPrefix}.input.vcf.gz.tbi
-    fi
+    # Keep a reusable tabix path for downstream tasks.
+    cp "${INPUT_VCF_INDEX}" "${TASK_INPUT_INDEX}"
 
     bcftools view \
         -R ~{variant_list} \
         -S  ~{sample_list} \
         -Oz \
-        -o ${SUBSET_VCF} \
-        ${INPUT_VCF}
+        -o "${SUBSET_VCF}" \
+        "${INPUT_VCF}"
 
     # Always emit a tabix index for downstream compatibility.
     bcftools index -t ~{OutputPrefix}.vcf.gz
