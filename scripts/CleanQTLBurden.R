@@ -56,6 +56,182 @@ BurdenTailProbability <- if (is.finite(opt$BurdenTailProbability)) {
 } else {
   0.9
 }
+
+first_matching_column <- function(candidates, available_columns) {
+  matches <- intersect(candidates, available_columns)
+  if (length(matches) == 0) {
+    return(NA_character_)
+  }
+  matches[[1]]
+}
+
+parse_proteomics_traits <- function(trait_ids) {
+  tibble(ProteomicsColumn = as.character(trait_ids)) %>%
+    mutate(
+      ensembl_pid = str_extract(ProteomicsColumn, "ENSG[0-9]+(\\.[0-9]+)?"),
+      has_separator = str_detect(ProteomicsColumn, "_"),
+      ProteinID = if_else(has_separator, str_replace(ProteomicsColumn, "_.*$", ""), NA_character_),
+      pid = case_when(
+        !is.na(ensembl_pid) ~ ensembl_pid,
+        has_separator ~ str_replace(ProteomicsColumn, "^[^_]+_", ""),
+        TRUE ~ ProteomicsColumn
+      ),
+      pid = str_remove(pid, '\\..*')
+    ) %>%
+    select(ProteomicsColumn, ProteinID, pid)
+}
+
+load_bed_zscore_matrix <- function(raw, value_column, source_label, parse_proteomics = FALSE) {
+  if (ncol(raw) < 5) {
+    stop(paste0(
+      source_label,
+      " z-score BED output must include 4 metadata columns and at least one sample column."
+    ))
+  }
+
+  trait_col <- first_matching_column(
+    c("pid", "gene_id", "phenotype_id", "molecular_trait_id", "ID", "id"),
+    names(raw)
+  )
+  if (is.na(trait_col)) {
+    trait_col <- names(raw)[[4]]
+  }
+
+  sample_cols <- names(raw)[5:ncol(raw)]
+  zscores <- raw %>%
+    transmute(
+      PhenotypeID = as.character(.data[[trait_col]]),
+      across(all_of(sample_cols))
+    ) %>%
+    pivot_longer(
+      cols = all_of(sample_cols),
+      names_to = "sample_id",
+      values_to = value_column
+    )
+
+  if (parse_proteomics) {
+    return(
+      zscores %>%
+        rename(ProteomicsColumn = PhenotypeID) %>%
+        left_join(parse_proteomics_traits(unique(.$ProteomicsColumn)), by = "ProteomicsColumn") %>%
+        mutate("{value_column}" := as.numeric(.data[[value_column]])) %>%
+        select(sample_id, ProteomicsColumn, ProteinID, pid, all_of(value_column))
+    )
+  }
+
+  zscores %>%
+    transmute(
+      sample_id = sample_id,
+      pid = str_remove(PhenotypeID, '\\..*'),
+      "{value_column}" := as.numeric(.data[[value_column]])
+    )
+}
+
+load_expression_zscores <- function(path) {
+  ExpressionRaw <- fread(path)
+
+  if (!"sample_id" %in% names(ExpressionRaw)) {
+    message("Detected BED-like expression z-score matrix; pivoting phenotype rows by sample columns.")
+    return(load_bed_zscore_matrix(ExpressionRaw, "ObservedZ", "Expression"))
+  }
+
+  pid_col <- first_matching_column(
+    c("pid", "gene_id", "molecular_trait_id", "phenotype_id"),
+    names(ExpressionRaw)
+  )
+  z_col <- first_matching_column(
+    c("ObservedZ", "expression_z", "expression_zscore", "zscore", "z_score", "z"),
+    names(ExpressionRaw)
+  )
+
+  if (!is.na(pid_col) && !is.na(z_col)) {
+    message("Detected long expression z-score table; normalizing columns for join.")
+    return(
+      ExpressionRaw %>%
+        transmute(
+          sample_id = sample_id,
+          pid = str_remove(as.character(.data[[pid_col]]), '\\..*'),
+          ObservedZ = as.numeric(.data[[z_col]])
+        )
+    )
+  }
+
+  message("Detected sample-by-phenotype expression z-score matrix; pivoting to long format for join.")
+  ExpressionZscoreColumns <- setdiff(names(ExpressionRaw), "sample_id")
+  if (length(ExpressionZscoreColumns) == 0) {
+    stop("Expression z scores must include at least one z-score column in addition to sample_id.")
+  }
+
+  ExpressionRaw %>%
+    pivot_longer(
+      cols = all_of(ExpressionZscoreColumns),
+      names_to = "pid",
+      values_to = "ObservedZ"
+    ) %>%
+    mutate(
+      pid = str_remove(pid, '\\..*'),
+      ObservedZ = as.numeric(ObservedZ)
+    )
+}
+
+load_proteomics_zscores <- function(path) {
+  ProteomicsRaw <- fread(path)
+
+  if (!"sample_id" %in% names(ProteomicsRaw)) {
+    message("Detected BED-like proteomics z-score matrix; pivoting phenotype rows by sample columns.")
+    return(load_bed_zscore_matrix(ProteomicsRaw, "ObservedProteomicsZ", "Proteomics", parse_proteomics = TRUE))
+  }
+
+  pid_col <- first_matching_column(
+    c("pid", "gene_id", "molecular_trait_id"),
+    names(ProteomicsRaw)
+  )
+  trait_col <- first_matching_column(
+    c("ProteomicsColumn", "proteomics_column", "phenotype_id", "ID", "id"),
+    names(ProteomicsRaw)
+  )
+  z_col <- first_matching_column(
+    c("ObservedProteomicsZ", "proteomics_z", "proteomics_zscore", "zscore", "z_score", "z"),
+    names(ProteomicsRaw)
+  )
+
+  if (!is.na(z_col) && (!is.na(pid_col) || !is.na(trait_col))) {
+    message("Detected long proteomics z-score table; normalizing columns for join.")
+    zscores <- ProteomicsRaw %>%
+      transmute(
+        sample_id = sample_id,
+        ProteomicsColumn = if (!is.na(trait_col)) as.character(.data[[trait_col]]) else as.character(.data[[pid_col]]),
+        LongPid = if (!is.na(pid_col)) str_remove(as.character(.data[[pid_col]]), '\\..*') else NA_character_,
+        ObservedProteomicsZ = as.numeric(.data[[z_col]])
+      )
+
+    return(
+      zscores %>%
+        left_join(parse_proteomics_traits(unique(.$ProteomicsColumn)), by = "ProteomicsColumn") %>%
+        mutate(pid = coalesce(LongPid, pid)) %>%
+        select(sample_id, ProteomicsColumn, ProteinID, pid, ObservedProteomicsZ)
+    )
+  }
+
+  message("Detected sample-by-phenotype proteomics z-score matrix; pivoting to long format for join.")
+  ProteomicsZscoreColumns <- setdiff(names(ProteomicsRaw), "sample_id")
+  if (length(ProteomicsZscoreColumns) == 0) {
+    stop("Proteomics z scores must include at least one z-score column in addition to sample_id.")
+  }
+
+  ProteomicsRaw %>%
+    pivot_longer(
+      cols = all_of(ProteomicsZscoreColumns),
+      names_to = "ProteomicsColumn",
+      values_to = "ObservedProteomicsZ"
+    ) %>%
+    left_join(parse_proteomics_traits(ProteomicsZscoreColumns), by = "ProteomicsColumn") %>%
+    mutate(
+      pid = str_remove(pid, '\\..*'),
+      ObservedProteomicsZ = as.numeric(ObservedProteomicsZ)
+    )
+}
+
 ####### LOAD DATA ###############
 message('Loading GTF')
 gene_annotations <- rtracklayer::import(GTFPath)
@@ -95,16 +271,7 @@ aFC <- fread(PathaFC)
 HasExpressionZscores <- !is.null(PathExpressionZscores) && PathExpressionZscores != ""
 if (HasExpressionZscores) {
   message("Loading expression z scores")
-  ExpressionZscores <- fread(PathExpressionZscores) %>%
-      pivot_longer(
-          cols = -sample_id,
-          names_to = "pid",
-          values_to = "ObservedZ"
-      ) %>%
-      mutate(
-        pid = str_remove(pid, '\\..*'),
-        ObservedZ = as.numeric(ObservedZ)
-      )
+  ExpressionZscores <- load_expression_zscores(PathExpressionZscores)
 } else {
   message("No expression z scores provided; skipping observed-expression outlier annotations.")
 }
@@ -112,29 +279,7 @@ if (HasExpressionZscores) {
 HasProteomicsZscores <- !is.null(PathProteomicsZscores) && PathProteomicsZscores != ""
 if (HasProteomicsZscores) {
   message("Loading proteomics z scores")
-  ProteomicsRaw <- fread(PathProteomicsZscores)
-  ProteomicsZscoreColumns <- setdiff(names(ProteomicsRaw), "sample_id")
-  ProteomicsColumnMap <- tibble(ProteomicsColumn = ProteomicsZscoreColumns) %>%
-    separate(
-      col = ProteomicsColumn,
-      into = c("ProteinID", "pid"),
-      sep = "_",
-      extra = "merge",
-      fill = "right"
-    ) %>%
-    mutate(pid = str_remove(pid, '\\..*'))
-
-  ProteomicsZscores <- ProteomicsRaw %>%
-      pivot_longer(
-          cols = -sample_id,
-          names_to = "ProteomicsColumn",
-          values_to = "ObservedProteomicsZ"
-      ) %>%
-      left_join(ProteomicsColumnMap, by = "ProteomicsColumn") %>%
-      mutate(
-        pid = str_remove(pid, '\\..*'),
-        ObservedProteomicsZ = as.numeric(ObservedProteomicsZ)
-      )
+  ProteomicsZscores <- load_proteomics_zscores(PathProteomicsZscores)
 } else {
   message("No proteomics z scores provided; skipping proteomics outlier annotations.")
 }

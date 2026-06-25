@@ -101,8 +101,8 @@ Cleaning and annotation inputs should contain:
 | File | Required columns or structure |
 | --- | --- |
 | `AlleleFrequencies` | `ID` plus one column per ancestry group. `ID` should match `sid`. |
-| `ExpressionZscores` | `sample_id` plus one column per `pid` (optional). |
-| `ProteomicsZscores` | `sample_id` plus one column per `<protein_id>_<gene_id[.version]>` (optional; may be a subset of measured proteins/genes). The gene portion is normalized by stripping version suffixes before join. |
+| `ExpressionZscores` | Residualized BED-style matrix from `ResidualizePhenotypes.R`: 4 metadata columns followed by one column per sample (optional). Legacy `sample_id` plus one column per `pid` is also accepted. |
+| `ProteomicsZscores` | Residualized BED-style matrix from `ResidualizePhenotypes.R`: 4 metadata columns followed by one column per sample, with phenotype IDs named either `<protein_id>_<gene_id[.version]>` or `gene_id[.version]` (optional; may be a subset of measured proteins/genes). Legacy `sample_id` matrices are also accepted. |
 | `AncestryAssignments` | `research_id`, `ancestry_pred_other`. |
 | `GTF` | Gene-level metadata convertible to `gene_id`, `gene_type`, and `gene_name`. |
 | `eQTLSusie` | `molecular_trait_id`, `pip`, and either `consequence` or boolean `frameshift` / `stop_gained` columns. |
