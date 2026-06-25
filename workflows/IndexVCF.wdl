@@ -9,6 +9,7 @@ task IndexVCFTask {
     set -euo pipefail
 
     INPUT_VCF="~{vcf_file}"
+    OUTPUT_TBI="~{vcf_file}.tbi"
     WORK_VCF="${INPUT_VCF}"
 
     # bcftools index expects common VCF bgzip suffixes; handle .vcf.bgz inputs explicitly.
@@ -24,7 +25,7 @@ task IndexVCFTask {
         exit 1
     fi
 
-    mv "${WORK_VCF}.tbi" index.tbi
+    mv "${WORK_VCF}.tbi" "${OUTPUT_TBI}"
     >>>
 
     runtime {
@@ -36,7 +37,7 @@ task IndexVCFTask {
     }
 
     output {
-        File vcf_tbi = "index.tbi"
+        File vcf_tbi = "~{vcf_file}.tbi"
     }
 }
 
