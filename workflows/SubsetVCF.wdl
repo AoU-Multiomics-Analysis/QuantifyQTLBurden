@@ -12,7 +12,8 @@ task SubsetVCFTask {
     command <<<
     set -euo pipefail
 
-    INPUT_VCF=~{OutputPrefix}.input.vcf.gz
+    INPUT_VCF=vcf_input.vcf.gz
+    INPUT_VCF_INDEX=${INPUT_VCF}.tbi
     SUBSET_VCF=~{OutputPrefix}.vcf.gz
 
     ln -s ~{vcf_file} ${INPUT_VCF}
@@ -21,14 +22,14 @@ task SubsetVCFTask {
       bcftools index -t ${INPUT_VCF}
     else
       # Align provided index to the temporary symlink name expected by bcftools.
-      ln -sfn ~{vcf_index} ${INPUT_VCF}.tbi
+      ln -sfn ~{vcf_index} ${INPUT_VCF_INDEX}
     fi
 
     # Keep a reusable tabix path for the input naming convention used in this task.
     if [[ "~{vcf_index}" == "null" ]] || [[ "~{vcf_index}" == "" ]] || [[ "~{vcf_index}" == "\${}" ]] || [[ "~{vcf_index}" == *.csi ]]; then
-      ln -sfn ${INPUT_VCF}.tbi ~{OutputPrefix}.input.vcf.gz.tbi
+      ln -sfn ${INPUT_VCF_INDEX} ~{OutputPrefix}.input.vcf.gz.tbi
     else
-      ln -sfn ${INPUT_VCF}.tbi ~{OutputPrefix}.input.vcf.gz.tbi
+      ln -sfn ${INPUT_VCF_INDEX} ~{OutputPrefix}.input.vcf.gz.tbi
     fi
 
     bcftools view \
