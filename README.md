@@ -15,6 +15,7 @@ The workflows stay separate:
 | aFC calculation | [`workflows/aFC.wdl`](workflows/aFC.wdl) | Computing aFC weights by chromosome and merging them. |
 | QTL burden | [`workflows/QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl) | Computing per-individual, per-gene burden from aFC weights and genotypes. |
 | Burden cleaning | [`workflows/CleanQTLBurden.wdl`](workflows/CleanQTLBurden.wdl) | Annotating an existing merged burden file. |
+| VCF subsetting | [`workflows/SubsetVCF.wdl`](workflows/SubsetVCF.wdl) | Subsetting cohorts or variants (commonly used for proteomics-only validation cohorts). |
 
 ## Quick Start
 
@@ -24,6 +25,7 @@ The workflows stay separate:
 4. Filter or prepare the resulting aFC weights for burden analysis.
 5. Run [`workflows/QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl).
 6. Re-run [`workflows/CleanQTLBurden.wdl`](workflows/CleanQTLBurden.wdl) only when cleaning or annotation needs to be repeated separately.
+7. Optionally run [`workflows/SubsetVCF.wdl`](workflows/SubsetVCF.wdl) first when generating a proteomics-only validation cohort.
 
 ## Documentation
 
@@ -31,6 +33,7 @@ The workflows stay separate:
 - [QTL burden workflows](docs/qtl-burden.md)
 - [Burden tail probabilities](docs/burden-probability.md)
 - [Runtime, Terra, and repository layout](docs/runtime-and-layout.md)
+- [VCF subset workflow (proteomics validation)](docs/proteomics-validation-subset.md)
 
 ## Scientific Summary
 
