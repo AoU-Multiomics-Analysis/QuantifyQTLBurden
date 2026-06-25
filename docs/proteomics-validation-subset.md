@@ -16,9 +16,7 @@ In this project, we used this to:
 [`workflows/SubsetVCF.wdl`](../workflows/SubsetVCF.wdl) expects:
 
 - `vcf_file`: `bgzip`-compressed, tabix-indexed VCF.
-- `vcf_index`: optional matching index file (`.vcf.gz.tbi` or `.vcf.gz.csi`).
-  - If provided, the file must already be the correctly named sidecar for `vcf_file` (same basename plus `.tbi`) for this workflow path to use it directly.
-  - If omitted, blank, or CSI, the task builds a `.tbi` index for the input VCF first.
+- `vcf_index`: matching index file (`.vcf.gz.tbi`). This workflow no longer generates indexes.
 - `variant_list`: bcftools `-R` region file (no header). This should be plain region coordinates.
 - `sample_list`: plain sample ID list (no header), one sample per line.
 - `OutputPrefix`: optional output prefix for the subset VCF.
@@ -40,8 +38,7 @@ This is useful when you already have a filtered list of loci to keep and want fa
 3. Build a sample list of proteomics-only individuals (exclude RNA-seq profiled individuals if that is the validation design).
 4. Run `SubsetVCF.wdl` to generate:
    - `subset_vcf` (`.vcf.gz`)
-   - `subset_vcf_index` (`.vcf.gz.tbi`)
-   - `input_index` (optional): a `.tbi` for the input VCF when one was created during this run (or a symlink-ready copy of an already-provided `.tbi`) so it can be reused as a cached index.
+   - `input_index` (pass-through): the input `.vcf.gz.tbi` supplied to `vcf_index`.
 5. Pass the subset outputs into the downstream burden steps as needed.
 
 ## Orthogonal proteomics validation strategy
