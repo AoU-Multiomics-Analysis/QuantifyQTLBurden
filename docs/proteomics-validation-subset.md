@@ -39,6 +39,7 @@ This is useful when you already have a filtered list of loci to keep and want fa
 4. Run `SubsetVCF.wdl` to generate:
    - `subset_vcf` (`.vcf.gz`)
    - `subset_vcf_index` (`.vcf.gz.tbi`)
+   - `input_index` (optional): a `.tbi` for the input VCF when one was created during this run (or a symlink-ready copy of an already-provided `.tbi`) so it can be reused as a cached index.
 5. Pass the subset outputs into the downstream burden steps as needed.
 
 ## Orthogonal proteomics validation strategy

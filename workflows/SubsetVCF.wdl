@@ -13,16 +13,11 @@ task SubsetVCFTask {
     set -euo pipefail
 
     ln -s ~{vcf_file} ~{OutputPrefix}.vcf.gz
-    if [[ "~{vcf_index}" == "null" ]]; then
+    if [[ "~{vcf_index}" == "null" ]] || [[ "~{vcf_index}" == *.csi ]]; then
       bcftools index -t ~{OutputPrefix}.vcf.gz
+      ln -sfn ~{OutputPrefix}.vcf.gz.tbi ~{OutputPrefix}.input.vcf.gz.tbi
     else
-      if [[ "~{vcf_index}" == *.tbi ]]; then
-        ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.tbi
-      elif [[ "~{vcf_index}" == *.csi ]]; then
-        ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.csi
-      else
-        ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.tbi
-      fi
+      ln -sfn ~{vcf_index} ~{OutputPrefix}.input.vcf.gz.tbi
     fi
 
     bcftools view \
@@ -47,6 +42,7 @@ task SubsetVCFTask {
     output {
         File subset_vcf = "~{OutputPrefix}.vcf.gz"
         File subset_vcf_index = "~{OutputPrefix}.vcf.gz.tbi"
+        File? input_vcf_index = "~{OutputPrefix}.input.vcf.gz.tbi"
     }
 }
 
@@ -72,5 +68,6 @@ workflow SubsetVCF {
     output {
         File vcf = SubsetVCFTask.subset_vcf
         File index = SubsetVCFTask.subset_vcf_index
+        File? input_index = SubsetVCFTask.input_vcf_index
     }
 }
