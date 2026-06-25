@@ -21,3 +21,6 @@ workflows:
   - subclass: WDL
     primaryDescriptorPath: /workflows/SubsetVCF.wdl
     name: "SubsetVCF"
+  - subclass: WDL
+    primaryDescriptorPath: /workflows/IndexVCF.wdl
+    name: "IndexVCF"
