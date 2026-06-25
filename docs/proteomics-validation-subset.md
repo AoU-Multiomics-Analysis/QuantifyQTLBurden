@@ -40,3 +40,28 @@ This is useful when you already have a filtered list of loci to keep and want fa
    - `subset_vcf` (`.vcf.gz`)
    - `subset_vcf_index` (`.vcf.gz.tbi`)
 5. Pass the subset outputs into the downstream burden steps as needed.
+
+## Orthogonal proteomics validation strategy
+
+The downstream logic uses the existing burden outputs plus measured proteomics values to run an **orthogonal validation**:
+
+- We score a subset of samples that did not have transcriptomic profiling (proteomics-only individuals).
+- For those samples, we still have proteomic z scores at a set of genes/proteins.
+- We test whether predicted high-burden bins are enriched for proteomic outliers compared with a near-null reference bin.
+
+In practice, `CleanQTLBurden.R` marks proteomics outliers as:
+- `UpProteomicsOutlier = ObservedProteomicsZ > 4`
+- `DownProteomicsOutlier = ObservedProteomicsZ < -4`
+
+`QTLBurdenOutlierEnrichment` then performs bin-wise enrichment tests for:
+- burden `type = Up` (`>= 50%` predicted gain-like change), and
+- burden `type = Down` (`<= -50%` predicted loss-like change),
+
+against the reference bin `(-10,10)` in percent change.
+
+For each burden model (`AllCalls`, `HighConfidence`, `HighKORemoved`), it reports:
+- enrichment odds ratio/log-odds ratio,
+- Fisher test p-values,
+- and permutation-based empirical p-values where available.
+
+Observed enrichment of proteomic outlier calls in the extreme burden bins supports that the genotype-derived burden signal is mirrored at the proteome level, which is useful as validation independent of transcriptomic measurements.
