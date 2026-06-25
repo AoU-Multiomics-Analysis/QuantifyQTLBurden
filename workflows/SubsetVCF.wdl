@@ -3,7 +3,7 @@ version 1.0
 task SubsetVCFTask {
     input {
         File vcf_file
-        File vcf_index
+        File? vcf_index
         File variant_list
         File sample_list
         String OutputPrefix
@@ -13,10 +13,16 @@ task SubsetVCFTask {
     set -euo pipefail
 
     ln -s ~{vcf_file} ~{OutputPrefix}.vcf.gz
-    if [[ ~{vcf_index} == *.csi ]]; then
-      ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.csi
+    if [[ "~{vcf_index}" == "null" ]]; then
+      bcftools index -t ~{OutputPrefix}.vcf.gz
     else
-      ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.tbi
+      if [[ "~{vcf_index}" == *.tbi ]]; then
+        ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.tbi
+      elif [[ "~{vcf_index}" == *.csi ]]; then
+        ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.csi
+      else
+        ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.tbi
+      fi
     fi
 
     bcftools view \
@@ -26,6 +32,7 @@ task SubsetVCFTask {
         -o ~{OutputPrefix}.vcf.gz \
         ~{OutputPrefix}.vcf.gz
 
+    # Always emit a tabix index for downstream compatibility.
     bcftools index -t ~{OutputPrefix}.vcf.gz
     >>>
     
@@ -47,7 +54,7 @@ task SubsetVCFTask {
 workflow SubsetVCF {
     input {
         File vcf_file
-        File vcf_index
+        File? vcf_index
         File variant_list
         File sample_list
         String OutputPrefix = "subset_vcf"
