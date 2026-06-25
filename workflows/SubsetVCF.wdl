@@ -12,21 +12,21 @@ task SubsetVCFTask {
     command <<<
     set -euo pipefail
 
-    INPUT_VCF=~{vcf_file}
+    INPUT_VCF="~{vcf_file}"
     INPUT_VCF_INDEX=${INPUT_VCF}.tbi
-    TASK_INPUT_INDEX=~{OutputPrefix}.input.vcf.gz.tbi
     SUBSET_VCF=~{OutputPrefix}.vcf.gz
 
     if [[ "~{vcf_index}" == "null" ]] || [[ "~{vcf_index}" == "" ]] || [[ "~{vcf_index}" == "\${}" ]] || [[ "~{vcf_index}" == *.csi ]]; then
       # Index the original input VCF path.
       bcftools index -t "${INPUT_VCF}"
-    else
-      # Align provided index to the basename expected by bcftools.
-      cp ~{vcf_index} "${INPUT_VCF_INDEX}"
+    elif [[ ! -f "${INPUT_VCF_INDEX}" ]]; then
+      # If input index is provided but not already colocated as <vcf>.tbi, we require caller
+      # to provide the correctly named index file.
+      echo "Expected index '${INPUT_VCF_INDEX}' not found. Ensure input index is named as input VCF plus .tbi."
+      exit 1
     fi
 
     # Keep a reusable tabix path for downstream tasks.
-    cp "${INPUT_VCF_INDEX}" "${TASK_INPUT_INDEX}"
 
     bcftools view \
         -R ~{variant_list} \
@@ -50,7 +50,7 @@ task SubsetVCFTask {
     output {
         File subset_vcf = "~{OutputPrefix}.vcf.gz"
         File subset_vcf_index = "~{OutputPrefix}.vcf.gz.tbi"
-        File? input_vcf_index = "~{OutputPrefix}.input.vcf.gz.tbi"
+        File? input_vcf_index = "~{vcf_file}.tbi"
     }
 }
 

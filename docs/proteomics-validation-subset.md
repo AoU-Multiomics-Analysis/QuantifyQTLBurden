@@ -16,7 +16,9 @@ In this project, we used this to:
 [`workflows/SubsetVCF.wdl`](../workflows/SubsetVCF.wdl) expects:
 
 - `vcf_file`: `bgzip`-compressed, tabix-indexed VCF.
-- `vcf_index`: optional matching index file (`.vcf.gz.tbi` or `.vcf.gz.csi`). If omitted or left unset, the task builds a `.vcf.gz.tbi` index for the input first.
+- `vcf_index`: optional matching index file (`.vcf.gz.tbi` or `.vcf.gz.csi`).
+  - If provided, the file must already be the correctly named sidecar for `vcf_file` (same basename plus `.tbi`) for this workflow path to use it directly.
+  - If omitted, blank, or CSI, the task builds a `.tbi` index for the input VCF first.
 - `variant_list`: bcftools `-R` region file (no header). This should be plain region coordinates.
 - `sample_list`: plain sample ID list (no header), one sample per line.
 - `OutputPrefix`: optional output prefix for the subset VCF.
