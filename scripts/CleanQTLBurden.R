@@ -81,6 +81,18 @@ parse_proteomics_traits <- function(trait_ids) {
     select(ProteomicsColumn, ProteinID, pid)
 }
 
+bed_trait_column <- function(raw) {
+  metadata_cols <- names(raw)[seq_len(min(4, ncol(raw)))]
+  trait_col <- first_matching_column(
+    c("pid", "gene_id", "phenotype_id", "molecular_trait_id"),
+    metadata_cols
+  )
+  if (!is.na(trait_col)) {
+    return(trait_col)
+  }
+  names(raw)[[4]]
+}
+
 load_bed_zscore_matrix <- function(raw, value_column, source_label, parse_proteomics = FALSE) {
   if (ncol(raw) < 5) {
     stop(paste0(
@@ -89,32 +101,28 @@ load_bed_zscore_matrix <- function(raw, value_column, source_label, parse_proteo
     ))
   }
 
-  trait_col <- first_matching_column(
-    c("pid", "gene_id", "phenotype_id", "molecular_trait_id", "ID", "id"),
-    names(raw)
-  )
-  if (is.na(trait_col)) {
-    trait_col <- names(raw)[[4]]
-  }
-
+  trait_col <- bed_trait_column(raw)
   sample_cols <- names(raw)[5:ncol(raw)]
   zscores <- raw %>%
-    transmute(
-      PhenotypeID = as.character(.data[[trait_col]]),
-      across(all_of(sample_cols))
-    ) %>%
+    select(all_of(c(trait_col, sample_cols))) %>%
     pivot_longer(
       cols = all_of(sample_cols),
       names_to = "sample_id",
       values_to = value_column
-    )
+    ) %>%
+    mutate("{value_column}" := as.numeric(.data[[value_column]]))
 
   if (parse_proteomics) {
+    zscores <- zscores %>%
+      transmute(
+        sample_id = sample_id,
+        ProteomicsColumn = as.character(.data[[trait_col]]),
+        "{value_column}" := .data[[value_column]]
+      )
+
     return(
       zscores %>%
-        rename(ProteomicsColumn = PhenotypeID) %>%
         left_join(parse_proteomics_traits(unique(.$ProteomicsColumn)), by = "ProteomicsColumn") %>%
-        mutate("{value_column}" := as.numeric(.data[[value_column]])) %>%
         select(sample_id, ProteomicsColumn, ProteinID, pid, all_of(value_column))
     )
   }
@@ -122,8 +130,8 @@ load_bed_zscore_matrix <- function(raw, value_column, source_label, parse_proteo
   zscores %>%
     transmute(
       sample_id = sample_id,
-      pid = str_remove(PhenotypeID, '\\..*'),
-      "{value_column}" := as.numeric(.data[[value_column]])
+      pid = str_remove(as.character(.data[[trait_col]]), '\\..*'),
+      "{value_column}" := .data[[value_column]]
     )
 }
 
