@@ -8,7 +8,7 @@ task IndexVCFTask {
     command <<<
     set -euo pipefail
 
-    bcftools index -t ~{vcf_file}
+    tabix -p vcf ~{vcf_file}
     >>>
 
     runtime {
