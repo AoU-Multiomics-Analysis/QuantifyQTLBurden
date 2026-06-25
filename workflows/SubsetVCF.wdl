@@ -10,14 +10,23 @@ task SubsetVCFTask {
     }
 
     command <<<
+    set -euo pipefail
+
+    ln -s ~{vcf_file} ~{OutputPrefix}.vcf.gz
+    if [[ ~{vcf_index} == *.csi ]]; then
+      ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.csi
+    else
+      ln -s ~{vcf_index} ~{OutputPrefix}.vcf.gz.tbi
+    fi
+
     bcftools view \
         -R ~{variant_list} \
         -S  ~{sample_list} \
         -Oz \
         -o ~{OutputPrefix}.vcf.gz \
-        ~{vcf_file} 
+        ~{OutputPrefix}.vcf.gz
 
-    bcftools index ~{OutputPrefix}.vcf.gz
+    bcftools index -t ~{OutputPrefix}.vcf.gz
     >>>
     
     runtime {
@@ -41,6 +50,7 @@ workflow SubsetVCF {
         File vcf_index
         File variant_list
         File sample_list
+        String OutputPrefix = "subset_vcf"
     }
     
     call SubsetVCFTask {
@@ -48,7 +58,8 @@ workflow SubsetVCF {
             vcf_file = vcf_file,
             vcf_index = vcf_index,
             variant_list = variant_list,
-            sample_list = sample_list
+            sample_list = sample_list,
+            OutputPrefix = OutputPrefix
 
     }
     output {
