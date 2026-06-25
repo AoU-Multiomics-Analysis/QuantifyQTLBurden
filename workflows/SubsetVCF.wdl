@@ -21,6 +21,8 @@ task SubsetVCFTask {
         -Oz \
         -o "${SUBSET_VCF}" \
         "${INPUT_VCF}"
+
+    bcftools index -t "${SUBSET_VCF}"
     >>>
     
     runtime {
@@ -33,6 +35,7 @@ task SubsetVCFTask {
     
     output {
         File subset_vcf = "~{OutputPrefix}.vcf.gz"
+        File subset_vcf_index = "~{OutputPrefix}.vcf.gz.tbi"
         File input_vcf_index = "~{vcf_index}"
     }
 }
@@ -58,6 +61,7 @@ workflow SubsetVCF {
     }
     output {
         File vcf = SubsetVCFTask.subset_vcf
+        File index = SubsetVCFTask.subset_vcf_index
         File input_index = SubsetVCFTask.input_vcf_index
     }
 }
