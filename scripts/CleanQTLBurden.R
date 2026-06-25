@@ -110,12 +110,15 @@ load_bed_zscore_matrix <- function(raw, value_column, source_label, parse_proteo
       names_to = "sample_id",
       values_to = value_column
     ) %>%
-    mutate("{value_column}" := as.numeric(.data[[value_column]]))
+    mutate(
+      sample_id = as.character(sample_id),
+      "{value_column}" := as.numeric(.data[[value_column]])
+    )
 
   if (parse_proteomics) {
     zscores <- zscores %>%
       transmute(
-        sample_id = sample_id,
+        sample_id = as.character(sample_id),
         ProteomicsColumn = as.character(.data[[trait_col]]),
         "{value_column}" := .data[[value_column]]
       )
@@ -129,7 +132,7 @@ load_bed_zscore_matrix <- function(raw, value_column, source_label, parse_proteo
 
   zscores %>%
     transmute(
-      sample_id = sample_id,
+      sample_id = as.character(sample_id),
       pid = str_remove(as.character(.data[[trait_col]]), '\\..*'),
       "{value_column}" := .data[[value_column]]
     )
@@ -157,7 +160,7 @@ load_expression_zscores <- function(path) {
     return(
       ExpressionRaw %>%
         transmute(
-          sample_id = sample_id,
+          sample_id = as.character(sample_id),
           pid = str_remove(as.character(.data[[pid_col]]), '\\..*'),
           ObservedZ = as.numeric(.data[[z_col]])
         )
@@ -177,6 +180,7 @@ load_expression_zscores <- function(path) {
       values_to = "ObservedZ"
     ) %>%
     mutate(
+      sample_id = as.character(sample_id),
       pid = str_remove(pid, '\\..*'),
       ObservedZ = as.numeric(ObservedZ)
     )
@@ -207,7 +211,7 @@ load_proteomics_zscores <- function(path) {
     message("Detected long proteomics z-score table; normalizing columns for join.")
     zscores <- ProteomicsRaw %>%
       transmute(
-        sample_id = sample_id,
+        sample_id = as.character(sample_id),
         ProteomicsColumn = if (!is.na(trait_col)) as.character(.data[[trait_col]]) else as.character(.data[[pid_col]]),
         LongPid = if (!is.na(pid_col)) str_remove(as.character(.data[[pid_col]]), '\\..*') else NA_character_,
         ObservedProteomicsZ = as.numeric(.data[[z_col]])
@@ -235,6 +239,7 @@ load_proteomics_zscores <- function(path) {
     ) %>%
     left_join(parse_proteomics_traits(ProteomicsZscoreColumns), by = "ProteomicsColumn") %>%
     mutate(
+      sample_id = as.character(sample_id),
       pid = str_remove(pid, '\\..*'),
       ObservedProteomicsZ = as.numeric(ObservedProteomicsZ)
     )
@@ -268,7 +273,8 @@ CodingVariantGenes <- eQTLSusie %>%
 
 message("Loading ancestry assignments")
 AncestryDf <- fread(PathAncestryAssignments) %>%
-    select(research_id, ancestry_pred_other)
+    select(research_id, ancestry_pred_other) %>%
+    mutate(research_id = as.character(research_id))
 
 message("Loading allele frequencies")
 AlleleFrequencyDf <- fread(PathAlleleFrequencies)
@@ -294,6 +300,7 @@ if (HasProteomicsZscores) {
 
 message("Loading burden data and merging")
 QTLBurdenMerge <- fread(BurdenPath) %>%
+    mutate(sample = as.character(sample)) %>%
     left_join(AncestryDf, by = c("sample" = "research_id")) %>%
     mutate(gene_id = str_remove(pid,'\\..*')) %>%
     left_join(GeneTypes,by = 'gene_id') %>%
