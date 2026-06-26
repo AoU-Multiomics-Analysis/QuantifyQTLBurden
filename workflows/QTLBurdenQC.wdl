@@ -36,7 +36,7 @@ task ComputeQTLBurdenQC {
 
   runtime {
     docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
-    memory: "256G"
+    memory: "128G"
     cpu: 2
     disks: "local-disk 2500 SSD"
   }
@@ -61,7 +61,7 @@ task ComputeQTLBurdenOutlierEnrichment {
 
   runtime {
     docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
-    memory: "256G"
+    memory: "128G"
     cpu: 2
     disks: "local-disk 2500 SSD"
   }
@@ -89,7 +89,7 @@ task ComputeQTLBurdenMedianGenesPerBin {
 
   runtime {
     docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
-    memory: "512G"
+    memory: "128G"
     cpu: 2
     disks: "local-disk 2500 SSD"
   }
@@ -138,7 +138,7 @@ task PlotQTLBurdenQC {
 
   runtime {
     docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
-    memory: "256G"
+    memory: "128G"
     cpu: 1
     disks: "local-disk 2500 SSD"
   }
