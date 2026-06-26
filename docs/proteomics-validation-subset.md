@@ -59,7 +59,7 @@ In practice, `CleanQTLBurden.R` marks proteomics outliers as:
 
 against the reference bin `(-10,10)` in percent change.
 
-For each burden model (`AllCalls`, `HighConfidence`, fixed high-KO removal thresholds, and top-`NumKO` percentage filters), it reports:
+For each protein-coding burden model (`AllCalls`, `HighConfidence`, fixed high-KO removal thresholds, and top-`NumKO` percentage filters), it reports:
 - enrichment odds ratio/log-odds ratio,
 - Fisher test p-values,
 - KO-filter metadata for high-KO sensitivity models,

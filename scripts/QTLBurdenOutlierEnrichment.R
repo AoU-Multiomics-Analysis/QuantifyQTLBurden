@@ -165,8 +165,10 @@ if (!has_expression_outlier_columns && !has_proteomics_outlier_columns) {
 
 message("Computing outlier enrichment")
 
-thresholds <- QTLBurdenFiltered_AllCalls %>%
-  filter(gene_type == "protein_coding") %>%
+QTLBurdenFiltered_ProteinCoding <- QTLBurdenFiltered_AllCalls %>%
+  filter(gene_type == "protein_coding")
+
+thresholds <- QTLBurdenFiltered_ProteinCoding %>%
   distinct(PercentChangeBin) %>%
   filter(!is.na(PercentChangeBin)) %>%
   mutate(lower = extract_bin_lower_bound(PercentChangeBin)) %>%
@@ -178,7 +180,7 @@ thresholds <- QTLBurdenFiltered_AllCalls %>%
 QTLBurdenFiltered_HighConfidence <- QTLBurdenFiltered_AllCalls %>%
   filter(!(is_dosage_extreme_call & is_noisy_extreme_call))
 
-GeneKOCounts <- QTLBurdenFiltered_AllCalls %>%
+GeneKOCounts <- QTLBurdenFiltered_ProteinCoding %>%
   group_by(pid) %>%
   summarize(
     NumKO = sum(PercentChangeCenteredEffectPopulation < -50, na.rm = TRUE),
