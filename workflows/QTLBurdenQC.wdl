@@ -138,7 +138,7 @@ task PlotQTLBurdenQC {
 
   runtime {
     docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/cleanqtlburden:main"
-    memory: "128G"
+    memory: "256G"
     cpu: 1
     disks: "local-disk 2500 SSD"
   }
