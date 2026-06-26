@@ -1,16 +1,17 @@
-name: Docker Image CI
+name: QTLBurdenQC Docker Image CI
 
 on:
   workflow_dispatch:
   push:
     branches: [ "main" ]
     paths:
-      - 'scripts/CleanQTLBurden.R'
-      - 'scripts/qtl_burden_functions/math_utils.R'
-      - 'envs/CleanQTLBurden/Dockerfile'
-      - '.github/workflows/CleanQTLBurden.yml'
-  #pull_request:
-  #  branches: [ "main" ]
+      - 'scripts/PlotQTLBurdenQC.R'
+      - 'scripts/QTLBurdenMedianGeneSummaries.R'
+      - 'scripts/QTLBurdenOutlierEnrichment.R'
+      - 'scripts/QTLBurdenQCMetrics.R'
+      - 'scripts/qtl_burden_functions/**'
+      - 'envs/QTLBurdenQC/Dockerfile'
+      - '.github/workflows/QTLBurdenQC.yml'
 
 jobs:
   build_and_push:
@@ -29,18 +30,18 @@ jobs:
           registry: ghcr.io
           username: ${{github.repository_owner}}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/CleanQTLBurden
+          images: ghcr.io/${{ github.repository }}/QTLBurdenQC
 
       - name: Build and push docker containers
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./envs/CleanQTLBurden/Dockerfile
-          push: True 
+          file: ./envs/QTLBurdenQC/Dockerfile
+          push: True
           tags: |
             ${{ steps.meta.outputs.tags }}
