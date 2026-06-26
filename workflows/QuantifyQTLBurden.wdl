@@ -112,7 +112,7 @@ import "CleanQTLBurden.wdl" as clean
     File? QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_HighConfidence_DosageNoisyFiltered
     File? QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered = QTLBurdenQC.QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered
     File? QTLBurdenOutlierEnrichmentPermutation = QTLBurdenQC.QTLBurdenOutlierEnrichmentPermutation
-    File? QTLBurdenPerSampleGene = CleanBurdenData.QTLBurdenPerSampleGene
+    File? QTLBurdenPerSampleGene_HighKORemoved = CleanBurdenData.QTLBurdenPerSampleGene_HighKORemoved
 
   }
 }

@@ -466,8 +466,8 @@ GeneBurdenCounts <- QTLBurdenZscores %>%
   mutate(CausalCodingVariantPresent = pid %in% CodingVariantGenes)
 GeneBurdenCounts %>% write_tsv('QTLGeneBurdenCounts.tsv.gz')
 
-###### SUMMARIZE BURDEN GENES PER INDIVIDUAL ########
-message('Summarizing number genes per percent bin ')
+###### EXPORT HIGH-KO-REMOVED PER-SAMPLE GENE BURDEN TABLE ########
+message('Writing high-KO-removed per-sample, per-gene burden table')
 KOPassList <- GeneBurdenCounts %>%
     filter(NumKO < 100) %>%
     pull(pid)
@@ -484,12 +484,9 @@ QTLBurdenFiltered_AllCalls <- QTLBurdenZscores %>%
 QTLBurdenFiltered_HighKORemoved <- QTLBurdenFiltered_AllCalls %>%
     filter(pid %in% KOPassList)
 
-QTLBurdenFiltered_HighConfidence <- QTLBurdenFiltered_AllCalls %>%
-    filter(!(is_dosage_extreme_call & is_noisy_extreme_call))
-
 QTLBurdenFiltered <- QTLBurdenFiltered_HighKORemoved
 
-QTLBurdenPerSampleGene <- QTLBurdenFiltered %>%
+QTLBurdenPerSampleGene_HighKORemoved <- QTLBurdenFiltered %>%
     select(
       individual_id,
       sample,
@@ -516,6 +513,6 @@ QTLBurdenPerSampleGene <- QTLBurdenFiltered %>%
     )
 
 arrow::write_parquet(
-  QTLBurdenPerSampleGene,
-  "QTLBurdenPerSampleGene.parquet"
+  QTLBurdenPerSampleGene_HighKORemoved,
+  "QTLBurdenPerSampleGene_HighKORemoved.parquet"
 )
