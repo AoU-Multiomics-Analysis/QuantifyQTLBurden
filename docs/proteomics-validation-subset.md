@@ -59,9 +59,10 @@ In practice, `CleanQTLBurden.R` marks proteomics outliers as:
 
 against the reference bin `(-10,10)` in percent change.
 
-For each burden model (`AllCalls`, `HighConfidence`, `HighKORemoved`), it reports:
+For each burden model (`AllCalls`, `HighConfidence`, fixed high-KO removal thresholds, and top-`NumKO` percentage filters), it reports:
 - enrichment odds ratio/log-odds ratio,
 - Fisher test p-values,
+- KO-filter metadata for high-KO sensitivity models,
 - and permutation-based empirical p-values where available.
 
 Observed enrichment of proteomic outlier calls in the extreme burden bins supports that the genotype-derived burden signal is mirrored at the proteome level, which is useful as validation independent of transcriptomic measurements.

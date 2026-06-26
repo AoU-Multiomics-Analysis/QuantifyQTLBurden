@@ -21,7 +21,11 @@ option_list <- list(
   optparse::make_option(c("--CleanedQTLBurden"), type = "character", default = NULL,
                         help = "Cleaned QTL burden file output from CleanQTLBurden.R"),
   optparse::make_option(c("--OutlierPermutationIterations"), type = "integer", default = 200,
-                        help = "Number of permutations used for null enrichment benchmarking")
+                        help = "Number of permutations used for null enrichment benchmarking"),
+  optparse::make_option(c("--HighKORemovalFixedThresholds"), type = "character", default = "50,100,250",
+                        help = "Comma-separated NumKO cutoffs for high-KO sensitivity models; genes with NumKO >= cutoff are removed."),
+  optparse::make_option(c("--HighKORemovalTopPercentages"), type = "character", default = "0.5,1",
+                        help = "Comma-separated top percentages of genes by NumKO to remove for high-KO sensitivity models.")
 )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
@@ -31,6 +35,36 @@ if (is.null(opt$CleanedQTLBurden)) {
 }
 
 OutlierPermutationIterations <- opt$OutlierPermutationIterations
+
+parse_numeric_list <- function(value, default_value, arg_name, min_value = 0, max_value = Inf) {
+  if (is.null(value) || is.na(value) || trimws(value) == "") {
+    return(default_value)
+  }
+
+  parsed <- suppressWarnings(as.numeric(trimws(unlist(strsplit(value, ",")))))
+  if (any(!is.finite(parsed)) || any(parsed <= min_value) || any(parsed > max_value)) {
+    stop(sprintf(
+      "%s must be a comma-separated list of numbers > %s and <= %s.",
+      arg_name,
+      min_value,
+      max_value
+    ))
+  }
+
+  unique(parsed)
+}
+
+HighKORemovalFixedThresholds <- parse_numeric_list(
+  opt$HighKORemovalFixedThresholds,
+  default_value = c(50, 100, 250),
+  arg_name = "--HighKORemovalFixedThresholds"
+)
+HighKORemovalTopPercentages <- parse_numeric_list(
+  opt$HighKORemovalTopPercentages,
+  default_value = c(0.5, 1),
+  arg_name = "--HighKORemovalTopPercentages",
+  max_value = 100
+)
 
 safe_first <- function(x) {
   if (length(x) == 0) {
@@ -68,7 +102,12 @@ if (!has_expression_outlier_columns && !has_proteomics_outlier_columns) {
     se_log_or = double(),
     ci_low = double(),
     ci_high = double(),
-    p_value = double()
+    p_value = double(),
+    ko_filter_type = character(),
+    ko_filter_value = double(),
+    ko_count_cutoff = double(),
+    ko_removed_genes = integer(),
+    ko_retained_genes = integer()
   )
   OutlierEnrichmentsRefBin %>%
     write_tsv("QTLBurdenOutlierEnrichment.tsv")
@@ -139,12 +178,83 @@ thresholds <- QTLBurdenFiltered_AllCalls %>%
 QTLBurdenFiltered_HighConfidence <- QTLBurdenFiltered_AllCalls %>%
   filter(!(is_dosage_extreme_call & is_noisy_extreme_call))
 
-QTLBurdenFiltered_HighKORemoved <- QTLBurdenFiltered_AllCalls %>%
+GeneKOCounts <- QTLBurdenFiltered_AllCalls %>%
   group_by(pid) %>%
-  filter(sum(PercentChangeCenteredEffectPopulation < -50, na.rm = TRUE) < 100) %>%
-  ungroup()
+  summarize(
+    NumKO = sum(PercentChangeCenteredEffectPopulation < -50, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-derive_enrichment <- function(df, model_label, outlier_source, down_col, up_col) {
+TotalGeneCount <- nrow(GeneKOCounts)
+
+make_fixed_ko_filter_spec <- function(cutoff) {
+  cutoff <- as.numeric(cutoff)
+  removed_pids <- GeneKOCounts %>%
+    filter(NumKO >= cutoff) %>%
+    pull(pid)
+
+  list(
+    model_label = if (cutoff == 100) "HighKORemoved" else paste0("HighKORemoved_NumKOlt", cutoff),
+    ko_filter_type = "fixed_num_ko_cutoff",
+    ko_filter_value = cutoff,
+    ko_count_cutoff = cutoff,
+    removed_pids = removed_pids,
+    ko_removed_genes = length(removed_pids),
+    ko_retained_genes = TotalGeneCount - length(removed_pids)
+  )
+}
+
+make_top_pct_ko_filter_spec <- function(top_pct) {
+  top_pct <- as.numeric(top_pct)
+  n_remove_target <- max(1L, ceiling(TotalGeneCount * top_pct / 100))
+  ko_count_cutoff <- GeneKOCounts %>%
+    arrange(desc(NumKO), pid) %>%
+    slice_head(n = n_remove_target) %>%
+    summarize(cutoff = min(NumKO, na.rm = TRUE)) %>%
+    pull(cutoff)
+
+  removed_pids <- if (is.finite(ko_count_cutoff) && ko_count_cutoff > 0) {
+    GeneKOCounts %>%
+      filter(NumKO >= ko_count_cutoff) %>%
+      pull(pid)
+  } else {
+    character(0)
+  }
+
+  list(
+    model_label = paste0("HighKORemoved_Top", format(top_pct, trim = TRUE, scientific = FALSE), "Pct"),
+    ko_filter_type = "top_num_ko_percent",
+    ko_filter_value = top_pct,
+    ko_count_cutoff = ko_count_cutoff,
+    removed_pids = removed_pids,
+    ko_removed_genes = length(removed_pids),
+    ko_retained_genes = TotalGeneCount - length(removed_pids)
+  )
+}
+
+HighKOFilterSpecs <- c(
+  lapply(HighKORemovalFixedThresholds, make_fixed_ko_filter_spec),
+  lapply(HighKORemovalTopPercentages, make_top_pct_ko_filter_spec)
+)
+
+message(sprintf(
+  "Prepared %d high-KO sensitivity models: %s",
+  length(HighKOFilterSpecs),
+  paste(vapply(HighKOFilterSpecs, `[[`, character(1), "model_label"), collapse = ", ")
+))
+
+derive_enrichment <- function(
+  df,
+  model_label,
+  outlier_source,
+  down_col,
+  up_col,
+  ko_filter_type = "none",
+  ko_filter_value = NA_real_,
+  ko_count_cutoff = NA_real_,
+  ko_removed_genes = 0L,
+  ko_retained_genes = TotalGeneCount
+) {
   df <- df %>%
     mutate(
       DownOutlier = .data[[down_col]],
@@ -156,7 +266,37 @@ derive_enrichment <- function(df, model_label, outlier_source, down_col, up_col)
     model_label = model_label,
     thresholds = thresholds
   ) %>%
-    mutate(OutlierSource = outlier_source)
+    mutate(
+      OutlierSource = outlier_source,
+      ko_filter_type = ko_filter_type,
+      ko_filter_value = ko_filter_value,
+      ko_count_cutoff = ko_count_cutoff,
+      ko_removed_genes = ko_removed_genes,
+      ko_retained_genes = ko_retained_genes
+    )
+}
+
+derive_high_ko_filter_enrichments <- function(outlier_source, down_col, up_col) {
+  purrr::map_dfr(
+    HighKOFilterSpecs,
+    function(spec) {
+      filtered_df <- QTLBurdenFiltered_AllCalls %>%
+        filter(!pid %in% spec$removed_pids)
+
+      derive_enrichment(
+        df = filtered_df,
+        model_label = spec$model_label,
+        outlier_source = outlier_source,
+        down_col = down_col,
+        up_col = up_col,
+        ko_filter_type = spec$ko_filter_type,
+        ko_filter_value = spec$ko_filter_value,
+        ko_count_cutoff = spec$ko_count_cutoff,
+        ko_removed_genes = spec$ko_removed_genes,
+        ko_retained_genes = spec$ko_retained_genes
+      )
+    }
+  )
 }
 
 expression_enrichments <- if (has_expression_outlier_columns) {
@@ -175,9 +315,7 @@ expression_enrichments <- if (has_expression_outlier_columns) {
       down_col = "DownOutlier",
       up_col = "UpOutlier"
     ),
-    derive_enrichment(
-      df = QTLBurdenFiltered_HighKORemoved,
-      model_label = "HighKORemoved",
+    derive_high_ko_filter_enrichments(
       outlier_source = "Expression",
       down_col = "DownOutlier",
       up_col = "UpOutlier"
@@ -203,9 +341,7 @@ proteomics_enrichments <- if (has_proteomics_outlier_columns) {
       down_col = "DownProteomicsOutlier",
       up_col = "UpProteomicsOutlier"
     ),
-    derive_enrichment(
-      df = QTLBurdenFiltered_HighKORemoved,
-      model_label = "HighKORemoved",
+    derive_high_ko_filter_enrichments(
       outlier_source = "Proteomics",
       down_col = "DownProteomicsOutlier",
       up_col = "UpProteomicsOutlier"

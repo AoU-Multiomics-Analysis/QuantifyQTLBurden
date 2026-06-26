@@ -59,6 +59,8 @@ Inputs:
 | `GainThreshold` | Float | Log2 cutoff for gain calls. Default: `0.5849625007` (+50%). |
 | `BurdenTailProbability` | Float | Tail-probability cutoff used to flag low-confidence extreme calls (`is_noisy_extreme_call`) in outputs. Default: `0.9`. |
 | `OutlierPermutationIterations` | Int | Number of permutations for outlier enrichment benchmarking (applies to the cleaning/annotation step). Default: `200`. |
+| `HighKORemovalFixedThresholds` | String | Comma-separated `NumKO` cutoffs for high-KO outlier-enrichment sensitivity models. Genes with `NumKO >= cutoff` are removed. Default: `"50,100,250"`. |
+| `HighKORemovalTopPercentages` | String | Comma-separated top percentages of genes by `NumKO` to remove for high-KO outlier-enrichment sensitivity models. Default: `"0.5,1"`. |
 | `VariantEffectSEColumn` | String | Optional column name for log2(aFC) standard error (or `auto`). |
 | `AlleleFrequencies` | File | Allele-frequency table for expected burden and variance. |
 | `ExpressionZscores` | File? | Matrix of observed expression z scores. If omitted, observed-expression outlier annotation and outlier enrichment outputs are disabled/sparse. |
@@ -166,7 +168,7 @@ Legacy unsuffixed median-bin outputs (`QTLBurdenMedianGenesPerBin.tsv`, `QTLBurd
 | `QTLBurdenMedianGenesPerBinByGeneSet_HighKORemoved_DosageNoisyFiltered.tsv` | By-gene-set noisy-filtered median table after high-KO removal. |
 | `QTLBurdenMedianGenesPerBin*` | Also includes `median_genes`, `q25_genes`, `q75_genes` (unweighted counts), and `median_weighted_genes`, `q25_weighted_genes`, `q75_weighted_genes` (weighted by `burden_tail_weight`: `P(loss-like)` for `<= -50`, `P(gain-like)` for `>= 50`, `1` otherwise). |
 | `QTLBurdenPerSampleGene_HighKORemoved.parquet` | Per-sample, per-gene burden table after excluding high-number KO genes (`pid` with `NumKO >= 100`). |
-| `QTLBurdenOutlierEnrichment.tsv` | Observed expression and proteomics outlier enrichment by burden bin for three models: `AllCalls`, `HighConfidence`, and `HighKORemoved`, with modality included in output rows. Empty (header-only) when no outlier annotations are provided. |
+| `QTLBurdenOutlierEnrichment.tsv` | Observed expression and proteomics outlier enrichment by burden bin. Models include `AllCalls`, `HighConfidence`, fixed high-KO removal thresholds such as `HighKORemoved_NumKOlt50`, legacy `HighKORemoved` (`NumKO < 100`), `HighKORemoved_NumKOlt250`, and top-`NumKO` percentage filters such as `HighKORemoved_Top0.5Pct` and `HighKORemoved_Top1Pct`. Rows include KO-filter metadata columns. Empty (header-only) when no outlier annotations are provided. |
 | `QTLBurdenOutlierEnrichmentNoisyFilterImpact.tsv` | Per-bin direct comparison of `AllCalls` vs `HighConfidence` (removing `is_noisy_extreme_call` within extreme bins), including change in log-odds ratio, Fisher p-value change, and contingency counts. Empty (header-only) when no outlier annotations are provided. |
 | `QTLBurdenOutlierEnrichmentPermutation.tsv` | Permutation-based p-values and null odds-ratio summary for `AllCalls` only; other model rows are included with `NA` null fields. Empty (header-only) when no outlier annotations are provided. |
 

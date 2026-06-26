@@ -23,6 +23,8 @@ import "CleanQTLBurden.wdl" as clean
     String VariantEffectSEColumn = "auto"
     Float BurdenTailProbability = 0.9
     Int OutlierPermutationIterations = 200
+    String HighKORemovalFixedThresholds = "50,100,250"
+    String HighKORemovalTopPercentages = "0.5,1"
     Float MissingnessFailThreshold = 0.10
     Float MissingnessWarnThreshold = 0.05
     Float ContextMissingnessFailThreshold = 0.05
@@ -66,6 +68,8 @@ import "CleanQTLBurden.wdl" as clean
         input_qc_qtl_burden = CleanBurdenData.QTLBurdenQCInputSlim,
         input_aFC_weights = aFCWeights,
         input_outlier_permutation_iterations = OutlierPermutationIterations,
+        input_high_ko_removal_fixed_thresholds = HighKORemovalFixedThresholds,
+        input_high_ko_removal_top_percentages = HighKORemovalTopPercentages,
         input_missingness_fail_threshold = MissingnessFailThreshold,
         input_missingness_warn_threshold = MissingnessWarnThreshold,
         input_context_missingness_fail_threshold = ContextMissingnessFailThreshold,

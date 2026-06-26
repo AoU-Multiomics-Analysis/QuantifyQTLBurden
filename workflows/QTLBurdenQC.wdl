@@ -51,12 +51,16 @@ task ComputeQTLBurdenOutlierEnrichment {
   input {
     File CleanedQTLBurden
     Int OutlierPermutationIterations = 200
+    String HighKORemovalFixedThresholds = "50,100,250"
+    String HighKORemovalTopPercentages = "0.5,1"
   }
 
   command <<<
   Rscript /tmp/QTLBurdenOutlierEnrichment.R \
     --CleanedQTLBurden ~{CleanedQTLBurden} \
-    --OutlierPermutationIterations ~{OutlierPermutationIterations}
+    --OutlierPermutationIterations ~{OutlierPermutationIterations} \
+    --HighKORemovalFixedThresholds '~{HighKORemovalFixedThresholds}' \
+    --HighKORemovalTopPercentages '~{HighKORemovalTopPercentages}'
   >>>
 
   runtime {
@@ -161,6 +165,8 @@ workflow QTLBurdenQC {
     File? input_qc_qtl_burden
     File input_aFC_weights
     Int input_outlier_permutation_iterations = 200
+    String input_high_ko_removal_fixed_thresholds = "50,100,250"
+    String input_high_ko_removal_top_percentages = "0.5,1"
     Float input_missingness_fail_threshold = 0.10
     Float input_missingness_warn_threshold = 0.05
     Float input_context_missingness_fail_threshold = 0.05
@@ -180,7 +186,9 @@ workflow QTLBurdenQC {
     call ComputeQTLBurdenOutlierEnrichment {
       input:
         CleanedQTLBurden = qc_qtl_burden,
-        OutlierPermutationIterations = input_outlier_permutation_iterations
+        OutlierPermutationIterations = input_outlier_permutation_iterations,
+        HighKORemovalFixedThresholds = input_high_ko_removal_fixed_thresholds,
+        HighKORemovalTopPercentages = input_high_ko_removal_top_percentages
     }
 
     call ComputeQTLBurdenMedianGenesPerBin {
