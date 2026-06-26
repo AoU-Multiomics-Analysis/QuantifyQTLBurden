@@ -158,6 +158,7 @@ task PlotQTLBurdenQC {
 workflow QTLBurdenQC {
   input {
     File input_cleaned_qtl_burden
+    File? input_qc_qtl_burden
     File input_aFC_weights
     Int input_outlier_permutation_iterations = 200
     Float input_missingness_fail_threshold = 0.10
@@ -174,22 +175,24 @@ workflow QTLBurdenQC {
     String input_qc_plot_prefix = "QTLGeneBurdenQC"
   }
 
+    File qc_qtl_burden = select_first([input_qc_qtl_burden, input_cleaned_qtl_burden])
+
     call ComputeQTLBurdenOutlierEnrichment {
       input:
-        CleanedQTLBurden = input_cleaned_qtl_burden,
+        CleanedQTLBurden = qc_qtl_burden,
         OutlierPermutationIterations = input_outlier_permutation_iterations
     }
 
     call ComputeQTLBurdenMedianGenesPerBin {
       input:
-        CleanedQTLBurden = input_cleaned_qtl_burden,
+        CleanedQTLBurden = qc_qtl_burden,
         aFC = input_aFC_weights,
         DominantVariantWarnThreshold = input_dominant_variant_warn_threshold
     }
 
     call ComputeQTLBurdenQC {
       input:
-        CleanedQTLBurden = input_cleaned_qtl_burden,
+        CleanedQTLBurden = qc_qtl_burden,
         aFC = input_aFC_weights,
         MissingnessFailThreshold = input_missingness_fail_threshold,
         MissingnessWarnThreshold = input_missingness_warn_threshold,
@@ -213,6 +216,7 @@ workflow QTLBurdenQC {
 
   output {
     File CleanedBurden = input_cleaned_qtl_burden
+    File QCBurdenInput = qc_qtl_burden
     File QTLGeneBurdenQC = ComputeQTLBurdenQC.qtl_gene_burden_qc
     File QTLGeneBurdenStatusList = ComputeQTLBurdenQC.qtl_gene_burden_status_list
     File QTLBurdenOutlierEnrichment = ComputeQTLBurdenOutlierEnrichment.qtl_burden_outlier_enrichment

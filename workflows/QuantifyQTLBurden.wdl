@@ -63,6 +63,7 @@ import "CleanQTLBurden.wdl" as clean
     call qctools.QTLBurdenQC as QTLBurdenQC {
       input:
         input_cleaned_qtl_burden = CleanBurdenData.QTLBurdenSummaryCleaned,
+        input_qc_qtl_burden = CleanBurdenData.QTLBurdenQCInputSlim,
         input_aFC_weights = aFCWeights,
         input_outlier_permutation_iterations = OutlierPermutationIterations,
         input_missingness_fail_threshold = MissingnessFailThreshold,
@@ -82,10 +83,11 @@ import "CleanQTLBurden.wdl" as clean
   output {
     File AggregatedBurden = QuantifyCoreBurden.AggregatedQTLBurden
     File FinalBurden = select_first([
-      QTLBurdenQC.CleanedBurden,
+      CleanBurdenData.QTLBurdenSummaryCleaned,
       QuantifyCoreBurden.AggregatedQTLBurden
     ])
-    File? CleanedBurden = QTLBurdenQC.CleanedBurden
+    File? CleanedBurden = CleanBurdenData.QTLBurdenSummaryCleaned
+    File? QTLBurdenQCInputSlim = CleanBurdenData.QTLBurdenQCInputSlim
     File? QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
     File? QTLGeneBurdenQC = QTLBurdenQC.QTLGeneBurdenQC
     File? QTLGeneBurdenStatusList = QTLBurdenQC.QTLGeneBurdenStatusList

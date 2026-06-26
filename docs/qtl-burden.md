@@ -141,6 +141,7 @@ Legacy unsuffixed median-bin outputs (`QTLBurdenMedianGenesPerBin.tsv`, `QTLBurd
 | Output | Description |
 | --- | --- |
 | `QTLBurdenSummary.cleaned.tsv.gz` | Annotated burden table. |
+| `QTLBurdenQCInput.slim.tsv.gz` | Slim QC-ready burden table containing only the columns consumed by QC, median-bin, and outlier-enrichment tasks. |
 | `QTLGeneBurdenCounts.tsv.gz` | Gene-level summary of large predicted burden events. |
 | `QTLGeneBurdenQC.tsv.gz` | Gene-level QC table. |
 | `QTLGeneBurdenStatusList.tsv.gz` | Gene-level QC status list (`PASS`/`WARN`/`FAIL`) and reasons. |

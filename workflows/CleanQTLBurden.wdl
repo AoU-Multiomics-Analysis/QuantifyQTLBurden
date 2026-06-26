@@ -35,6 +35,7 @@ task CleanBurdenData {
  
     output {
         File QTLBurdenSummaryCleaned = "QTLBurdenSummary.cleaned.tsv.gz"
+        File QTLBurdenQCInputSlim = "QTLBurdenQCInput.slim.tsv.gz"
         File QTLBurdenCounts = "QTLGeneBurdenCounts.tsv.gz"
         File QTLBurdenPerSampleGene_HighKORemoved = "QTLBurdenPerSampleGene_HighKORemoved.parquet"
     }
@@ -68,6 +69,7 @@ workflow CleanQTLBurdenTask {
 
   output {
     File QTLBurdenSummaryCleaned = CleanBurdenData.QTLBurdenSummaryCleaned
+    File QTLBurdenQCInputSlim = CleanBurdenData.QTLBurdenQCInputSlim
     File QTLBurdenCounts = CleanBurdenData.QTLBurdenCounts
     File QTLBurdenPerSampleGene_HighKORemoved = CleanBurdenData.QTLBurdenPerSampleGene_HighKORemoved
   }

@@ -64,24 +64,61 @@ compute_bin_enrichment <- function(df, focal_lower_bound, ref_lower_bound = -10,
   )
 }
 
+draw_permuted_outlier_counts <- function(benchmark_data, outlier_col) {
+  benchmark_data <- benchmark_data %>%
+    dplyr::filter(!is.na(PercentChangeBin))
+
+  bin_sizes <- benchmark_data %>%
+    dplyr::count(PercentChangeBin, name = "bin_n") %>%
+    dplyr::arrange(PercentChangeBin)
+
+  outlier_values <- benchmark_data[[outlier_col]]
+  category_totals <- c(
+    `TRUE` = sum(outlier_values %in% TRUE, na.rm = TRUE),
+    `FALSE` = sum(outlier_values %in% FALSE, na.rm = TRUE),
+    `NA` = sum(is.na(outlier_values))
+  )
+
+  draws <- matrix(
+    0L,
+    nrow = length(category_totals),
+    ncol = nrow(bin_sizes),
+    dimnames = list(names(category_totals), as.character(bin_sizes$PercentChangeBin))
+  )
+
+  positive_categories <- category_totals > 0
+  if (sum(positive_categories) == 1) {
+    draws[positive_categories, ] <- as.integer(bin_sizes$bin_n)
+  } else if (sum(positive_categories) > 1) {
+    draws[names(category_totals)[positive_categories], ] <- r2dtable(
+      n = 1,
+      r = as.integer(category_totals[positive_categories]),
+      c = as.integer(bin_sizes$bin_n)
+    )[[1]]
+  }
+
+  tibble::tibble(
+    PercentChangeBin = rep(bin_sizes$PercentChangeBin, times = 2),
+    "{outlier_col}" := rep(c(TRUE, FALSE), each = nrow(bin_sizes)),
+    n = as.numeric(c(draws["TRUE", ], draws["FALSE", ]))
+  )
+}
+
 run_permutation_enrichment <- function(benchmark_data, thresholds, n_perm) {
   permuted_log_or <- vector("list", n_perm)
   start_time <- Sys.time()
   report_every <- max(1L, floor(n_perm / 10))
 
   for (iter_idx in seq_len(n_perm)) {
-    permuted_data <- benchmark_data %>%
-      mutate(
-        DownOutlier = sample(DownOutlier),
-        UpOutlier = sample(UpOutlier)
-      ) %>%
-      dplyr::group_by(PercentChangeBin)
+    down_outlier_count <- draw_permuted_outlier_counts(
+      benchmark_data,
+      outlier_col = "DownOutlier"
+    )
 
-    down_outlier_count <- permuted_data %>%
-      dplyr::count(DownOutlier, name = "n")
-
-    up_outlier_count <- permuted_data %>%
-      dplyr::count(UpOutlier, name = "n")
+    up_outlier_count <- draw_permuted_outlier_counts(
+      benchmark_data,
+      outlier_col = "UpOutlier"
+    )
 
     down_enrichment <- purrr::map_dfr(
       thresholds,

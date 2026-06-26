@@ -433,6 +433,49 @@ if (is.finite(BurdenTailProbability) && BurdenTailProbability > 0) {
 
 QTLBurdenZscores %>% write_tsv('QTLBurdenSummary.cleaned.tsv.gz')
 
+###### EXPORT SLIM QC-READY BURDEN TABLE ########
+message('Writing slim QC-ready burden table')
+QTLBurdenQCSlimColumns <- c(
+  "sample",
+  "pid",
+  "gene_id",
+  "gene_name",
+  "gene_type",
+  "CausalCodingVariantPresent",
+  "predicted_effect",
+  "CenteredEffectPopulation",
+  "CenteredEffectZPopulation",
+  "CenteredEffectZEmpiricalPopulation",
+  "PercentChangeCenteredEffectPopulation",
+  "PercentChangeBin",
+  "GeneVariance_Population",
+  "EmpiricalVariance_Population",
+  "has_missing_genotype",
+  "n_missing_genotypes",
+  "burden_probability_loss50",
+  "burden_probability_gain50",
+  "is_noisy_extreme_call",
+  "is_dosage_extreme_call",
+  "ObservedZ",
+  "UpOutlier",
+  "DownOutlier",
+  "ObservedProteomicsZ",
+  "UpProteomicsOutlier",
+  "DownProteomicsOutlier"
+)
+
+MissingQCSlimColumns <- setdiff(QTLBurdenQCSlimColumns, names(QTLBurdenZscores))
+if (length(MissingQCSlimColumns) > 0) {
+  stop(
+    "Cannot write QTLBurdenQCInput.slim.tsv.gz; missing required QC columns: ",
+    paste(MissingQCSlimColumns, collapse = ", ")
+  )
+}
+
+QTLBurdenZscores %>%
+  select(all_of(QTLBurdenQCSlimColumns)) %>%
+  write_tsv('QTLBurdenQCInput.slim.tsv.gz')
+
 ######  GET  BURDEN COUNTS  #########
 KnockoutCountPerGene <- QTLBurdenZscores %>% 
     mutate(PercentChange = (2^CenteredEffectPopulation -1) *100) %>% 
