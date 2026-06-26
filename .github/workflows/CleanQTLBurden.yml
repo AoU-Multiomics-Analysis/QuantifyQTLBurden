@@ -7,7 +7,11 @@ on:
     paths:
       - 'scripts/CleanQTLBurden.R'
       - 'scripts/PlotQTLBurdenQC.R'
+      - 'scripts/QTLBurdenMedianGeneSummaries.R'
+      - 'scripts/QTLBurdenOutlierEnrichment.R'
+      - 'scripts/QTLBurdenQCMetrics.R'
       - 'scripts/qtl_burden_functions/**'
+      - 'envs/CleanQTLBurden/Dockerfile'
       - '.github/workflows/CleanQTLBurden.yml'
   #pull_request:
   #  branches: [ "main" ]
