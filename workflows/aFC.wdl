@@ -65,7 +65,7 @@ task build_gene_afc_manifest {
         required = {"chr", "start", "end", "gene_id"}
         missing = required - set(header)
         if missing:
-            raise ValueError(f"Cis-window BED is missing required columns: {sorted(missing)}")
+            raise ValueError("Cis-window BED is missing required columns: {}".format(sorted(missing)))
 
         column_index = {column: idx for idx, column in enumerate(header)}
         for raw in reader:
@@ -80,9 +80,9 @@ task build_gene_afc_manifest {
             except ValueError:
                 continue
             if end < start:
-                raise ValueError(f"Cis window end is before start for {gene_id}: {start}-{end}")
+                raise ValueError("Cis window end is before start for {}: {}-{}".format(gene_id, start, end))
             if gene_id in windows_by_gene:
-                raise ValueError(f"Multiple cis-window rows found for {gene_id}")
+                raise ValueError("Multiple cis-window rows found for {}".format(gene_id))
             windows_by_gene[gene_id] = (
                 raw[column_index["chr"]],
                 start,
@@ -94,14 +94,14 @@ task build_gene_afc_manifest {
     if missing_windows:
         preview = ", ".join(missing_windows[:10])
         raise ValueError(
-            f"{len(missing_windows)} gene IDs in the QTL file are missing cis-window rows. "
-            f"First missing gene IDs: {preview}"
+            "{} gene IDs in the QTL file are missing cis-window rows. "
+            "First missing gene IDs: {}".format(len(missing_windows), preview)
         )
 
     with open("gene_manifest.tsv", "w") as out:
         for gene_id in sorted(windows_by_gene):
             chrom, start, end, safe_gene_id = windows_by_gene[gene_id]
-            out.write(f"{chrom}\t{start}\t{end}\t{gene_id}\t{safe_gene_id}\n")
+            out.write("{}\t{}\t{}\t{}\t{}\n".format(chrom, start, end, gene_id, safe_gene_id))
     PY
   >>>
 
@@ -145,7 +145,12 @@ task prepare_gene_afc_inputs {
     afc_qtl_file = "~{afc_qtl_file}"
     fields = gene_record.rstrip("\n").split("\t")
     if len(fields) != 5:
-        raise ValueError(f"Expected 5 tab-delimited gene manifest fields, got {len(fields)}: {gene_record!r}")
+        raise ValueError(
+            "Expected 5 tab-delimited gene manifest fields, got {}: {!r}".format(
+                len(fields),
+                gene_record,
+            )
+        )
 
     gene_chr, gene_start, gene_end, gene_id, safe_gene_id = fields
 
@@ -161,7 +166,7 @@ task prepare_gene_afc_inputs {
         required = {"pid", "sid", "sid_chr", "sid_pos"}
         missing = required - set(reader.fieldnames)
         if missing:
-            raise ValueError(f"QTL file is missing required columns: {sorted(missing)}")
+            raise ValueError("QTL file is missing required columns: {}".format(sorted(missing)))
 
         writer = csv.DictWriter(target, fieldnames=reader.fieldnames, delimiter="\t", lineterminator="\n")
         writer.writeheader()
@@ -172,7 +177,7 @@ task prepare_gene_afc_inputs {
                 rows_written += 1
 
     if rows_written == 0:
-        raise ValueError(f"No QTL rows found for {gene_id}")
+        raise ValueError("No QTL rows found for {}".format(gene_id))
 
     with open("gene_chr.txt", "w") as out:
         out.write(gene_chr)
