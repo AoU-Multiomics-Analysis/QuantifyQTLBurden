@@ -3,6 +3,7 @@ version 1.0
 task IndexVCFTask {
     input {
         File vcf_file
+        Int memory
     }
 
     command <<<
@@ -13,9 +14,9 @@ task IndexVCFTask {
 
     runtime {
         docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/subsetvcf:main"
-        memory: "128GB"
+        memory: "${memory}GB"
         cpu: "1"
-        disks: "local-disk 200 HDD"
+        disks: "local-disk 1000 HDD"
         preemptible: "0"
     }
 
@@ -27,11 +28,13 @@ task IndexVCFTask {
 workflow IndexVCF {
     input {
         File vcf_file
+        Int memory = 128
     }
 
     call IndexVCFTask {
         input:
-            vcf_file = vcf_file
+            vcf_file = vcf_file,
+            memory = memory
     }
 
     output {
