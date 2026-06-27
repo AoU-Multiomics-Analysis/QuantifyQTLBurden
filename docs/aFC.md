@@ -46,7 +46,7 @@ Outputs:
 
 ## aFC Workflow
 
-[`../workflows/aFC.wdl`](../workflows/aFC.wdl) runs aFC by gene and merges per-gene reports.
+[`../workflows/aFC.wdl`](../workflows/aFC.wdl) splits the VCF by chromosome, prepares gene-level inputs within each chromosome, runs aFC by gene, and merges per-gene reports.
 
 Workflow:
 
@@ -54,8 +54,9 @@ Workflow:
 
 Tasks:
 
-- `build_gene_afc_manifest`: joins the QTL file to a cis-window BED and creates one scatter record per gene.
-- `prepare_gene_afc_inputs`: creates a gene-specific QTL file and subsets/indexes the VCF to that gene's cis window.
+- `build_gene_afc_manifest`: joins the QTL file to a cis-window BED and creates a gene manifest plus the chromosome list to process.
+- `split_vcf_by_chr`: subsets and indexes the input VCF once per chromosome.
+- `prepare_chromosome_afc_inputs`: creates gene-specific QTL files and gene cis-window VCFs for all genes on one chromosome.
 - `run_afc`: runs `/opt/aFC/aFC.py` on the gene-specific VCF, expression BED, covariates, and QTL file.
 - `merge_afc_reports`: concatenates gene-level aFC outputs into one gzipped report.
 
@@ -81,6 +82,9 @@ Outputs:
 | Output | Description |
 | --- | --- |
 | `gene_manifest` | Gene scatter manifest with `chr`, `start`, `end`, `gene_id`, and safe file-name gene ID columns. |
+| `per_chr_vcfs` | Per-chromosome VCFs generated before gene-level preprocessing. |
+| `per_chr_vcf_indexes` | Tabix indexes for `per_chr_vcfs`. |
+| `chromosome_gene_windows` | Per-chromosome gene-window manifests used to generate gene-specific VCFs and QTL files. |
 | `per_gene_afc_reports` | Per-gene aFC reports: `<prefix>.<gene_id>.aFC.txt.gz` using a file-safe gene ID. |
 | `final_afc_report` | Merged aFC report across genes: `<prefix>.aFC.txt.gz`. |
 

@@ -48,6 +48,8 @@ task build_gene_afc_manifest {
         return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
 
     windows_by_gene = {}
+    chromosome_order = []
+    chromosomes_seen = set()
     with open_text(cis_window_bed) as handle:
         reader = csv.reader(handle, delimiter="\t")
         header = None
@@ -83,8 +85,12 @@ task build_gene_afc_manifest {
                 raise ValueError("Cis window end is before start for {}: {}-{}".format(gene_id, start, end))
             if gene_id in windows_by_gene:
                 raise ValueError("Multiple cis-window rows found for {}".format(gene_id))
+            chrom = raw[column_index["chr"]]
+            if chrom not in chromosomes_seen:
+                chromosome_order.append(chrom)
+                chromosomes_seen.add(chrom)
             windows_by_gene[gene_id] = (
-                raw[column_index["chr"]],
+                chrom,
                 start,
                 end,
                 safe_name(gene_id),
@@ -102,6 +108,10 @@ task build_gene_afc_manifest {
         for gene_id in sorted(windows_by_gene):
             chrom, start, end, safe_gene_id = windows_by_gene[gene_id]
             out.write("{}\t{}\t{}\t{}\t{}\n".format(chrom, start, end, gene_id, safe_gene_id))
+
+    with open("chromosomes.txt", "w") as out:
+        for chrom in chromosome_order:
+            out.write("{}\n".format(chrom))
     PY
   >>>
 
@@ -116,15 +126,16 @@ task build_gene_afc_manifest {
   output {
     File gene_manifest = "gene_manifest.tsv"
     Array[String] gene_records = read_lines("gene_manifest.tsv")
+    Array[String] chromosomes = read_lines("chromosomes.txt")
   }
 }
 
-task prepare_gene_afc_inputs {
+task split_vcf_by_chr {
   input {
     File vcf_file
     File vcf_index
-    File afc_qtl_file
-    String gene_record
+    String chr
+    String prefix
 
     Int memory
     Int disk_space
@@ -132,81 +143,23 @@ task prepare_gene_afc_inputs {
     Int num_preempt
   }
 
-  Int actual_disk = ceil(size(vcf_file, "GB") + size(afc_qtl_file, "GB")) + disk_space
+  Int actual_disk = ceil(size(vcf_file, "GB")) + disk_space
 
   command <<<
     set -euo pipefail
 
-    python3 <<'PY'
-    import csv
-    import gzip
+    echo "Subsetting VCF to ~{chr}..."
+    out_vcf="~{prefix}.~{chr}.vcf.gz"
 
-    gene_record = """~{gene_record}"""
-    afc_qtl_file = "~{afc_qtl_file}"
-    fields = gene_record.rstrip("\n").split("\t")
-    if len(fields) != 5:
-        raise ValueError(
-            "Expected 5 tab-delimited gene manifest fields, got {}: {!r}".format(
-                len(fields),
-                gene_record,
-            )
-        )
-
-    gene_chr, gene_start, gene_end, gene_id, safe_gene_id = fields
-
-    def open_text(path):
-        if path.endswith(".gz"):
-            return gzip.open(path, "rt")
-        return open(path, "r")
-
-    with open_text(afc_qtl_file) as source, open("gene.qtl.tsv", "w", newline="") as target:
-        reader = csv.DictReader(source, delimiter="\t")
-        if reader.fieldnames is None:
-            raise ValueError("QTL file has no header")
-        required = {"pid", "sid", "sid_chr", "sid_pos"}
-        missing = required - set(reader.fieldnames)
-        if missing:
-            raise ValueError("QTL file is missing required columns: {}".format(sorted(missing)))
-
-        writer = csv.DictWriter(target, fieldnames=reader.fieldnames, delimiter="\t", lineterminator="\n")
-        writer.writeheader()
-        rows_written = 0
-        for row in reader:
-            if row.get("pid") == gene_id:
-                writer.writerow(row)
-                rows_written += 1
-
-    if rows_written == 0:
-        raise ValueError("No QTL rows found for {}".format(gene_id))
-
-    with open("gene_chr.txt", "w") as out:
-        out.write(gene_chr)
-    with open("gene_start.txt", "w") as out:
-        out.write(gene_start)
-    with open("gene_end.txt", "w") as out:
-        out.write(gene_end)
-    with open("gene_id.txt", "w") as out:
-        out.write(gene_id)
-    with open("safe_gene_id.txt", "w") as out:
-        out.write(safe_gene_id)
-    PY
-
-    gene_chr="$(cat gene_chr.txt)"
-    gene_start="$(cat gene_start.txt)"
-    gene_end="$(cat gene_end.txt)"
-    gene_id="$(cat gene_id.txt)"
-    region="${gene_chr}:${gene_start}-${gene_end}"
-
-    echo "Subsetting VCF to ${gene_id} cis window ${region}..."
     bcftools view \
       --threads ~{num_threads} \
-      -r "${region}" \
+      -r "~{chr}" \
       -Oz \
-      -o gene.vcf.gz \
+      -o "${out_vcf}" \
       "~{vcf_file}"
 
-    echo "Indexing per-gene VCF..."
-    tabix -p vcf gene.vcf.gz
+    echo "Indexing per-chromosome VCF..."
+    tabix -p vcf "${out_vcf}"
   >>>
 
   runtime {
@@ -218,12 +171,151 @@ task prepare_gene_afc_inputs {
   }
 
   output {
-    File gene_vcf = "gene.vcf.gz"
-    File gene_vcf_index = "gene.vcf.gz.tbi"
-    File gene_qtl_file = "gene.qtl.tsv"
-    String gene_chr = read_string("gene_chr.txt")
-    String gene_id = read_string("gene_id.txt")
-    String safe_gene_id = read_string("safe_gene_id.txt")
+    File chr_vcf = "${prefix}.${chr}.vcf.gz"
+    File chr_vcf_index = "${prefix}.${chr}.vcf.gz.tbi"
+  }
+}
+
+task prepare_chromosome_afc_inputs {
+  input {
+    File chr_vcf
+    File chr_vcf_index
+    File afc_qtl_file
+    File gene_manifest
+    String chr
+
+    Int memory
+    Int disk_space
+    Int num_threads
+    Int num_preempt
+  }
+
+  Int actual_disk = ceil(size(chr_vcf, "GB") + size(afc_qtl_file, "GB") + size(gene_manifest, "GB")) + disk_space
+
+  command <<<
+    set -euo pipefail
+
+    mkdir -p gene_inputs
+
+    python3 <<'PY'
+    import csv
+    import gzip
+    import os
+
+    chromosome = "~{chr}"
+    afc_qtl_file = "~{afc_qtl_file}"
+    gene_manifest = "~{gene_manifest}"
+
+    def open_text(path):
+        if path.endswith(".gz"):
+            return gzip.open(path, "rt")
+        return open(path, "r")
+
+    genes = []
+    with open(gene_manifest, "r") as handle:
+        for line in handle:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) != 5:
+                raise ValueError(
+                    "Expected 5 tab-delimited gene manifest fields, got {}: {!r}".format(
+                        len(fields),
+                        line,
+                    )
+                )
+            gene_chr, gene_start, gene_end, gene_id, safe_gene_id = fields
+            if gene_chr == chromosome:
+                genes.append(
+                    {
+                        "chr": gene_chr,
+                        "start": gene_start,
+                        "end": gene_end,
+                        "gene_id": gene_id,
+                        "safe_gene_id": safe_gene_id,
+                    }
+                )
+
+    if not genes:
+        raise ValueError("No genes found in manifest for chromosome {}".format(chromosome))
+
+    genes.sort(key=lambda gene: gene["safe_gene_id"])
+    gene_ids = set(gene["gene_id"] for gene in genes)
+    qtl_rows_by_gene = dict((gene["gene_id"], []) for gene in genes)
+
+    with open_text(afc_qtl_file) as source:
+        reader = csv.DictReader(source, delimiter="\t")
+        if reader.fieldnames is None:
+            raise ValueError("QTL file has no header")
+        required = {"pid", "sid", "sid_chr", "sid_pos"}
+        missing = required - set(reader.fieldnames)
+        if missing:
+            raise ValueError("QTL file is missing required columns: {}".format(sorted(missing)))
+
+        for row in reader:
+            gene_id = row.get("pid")
+            if gene_id in gene_ids:
+                qtl_rows_by_gene[gene_id].append(row)
+
+    with open("gene_windows.tsv", "w") as windows, \
+         open("gene_chrs.txt", "w") as gene_chrs, \
+         open("gene_ids.txt", "w") as gene_ids_out, \
+         open("safe_gene_ids.txt", "w") as safe_gene_ids:
+        for gene in genes:
+            rows = qtl_rows_by_gene[gene["gene_id"]]
+            if not rows:
+                raise ValueError("No QTL rows found for {}".format(gene["gene_id"]))
+
+            qtl_path = os.path.join("gene_inputs", "{}.qtl.tsv".format(gene["safe_gene_id"]))
+            with open(qtl_path, "w", newline="") as target:
+                writer = csv.DictWriter(target, fieldnames=reader.fieldnames, delimiter="\t", lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(rows)
+
+            windows.write(
+                "{}\t{}\t{}\t{}\t{}\n".format(
+                    gene["safe_gene_id"],
+                    gene["gene_id"],
+                    gene["chr"],
+                    gene["start"],
+                    gene["end"],
+                )
+            )
+            gene_chrs.write("{}\n".format(gene["chr"]))
+            gene_ids_out.write("{}\n".format(gene["gene_id"]))
+            safe_gene_ids.write("{}\n".format(gene["safe_gene_id"]))
+    PY
+
+    while IFS=$'\t' read -r safe_gene_id gene_id gene_chr gene_start gene_end; do
+      region="${gene_chr}:${gene_start}-${gene_end}"
+      out_vcf="gene_inputs/${safe_gene_id}.vcf.gz"
+
+      echo "Subsetting chromosome VCF to ${gene_id} cis window ${region}..."
+      bcftools view \
+        --threads ~{num_threads} \
+        -r "${region}" \
+        -Oz \
+        -o "${out_vcf}" \
+        "~{chr_vcf}"
+
+      tabix -p vcf "${out_vcf}"
+    done < gene_windows.tsv
+  >>>
+
+  runtime {
+    docker: "gcr.io/broad-cga-francois-gtex/gtex_eqtl:V8"
+    memory: "${memory}GB"
+    disks: "local-disk ${actual_disk} HDD"
+    cpu: num_threads
+    preemptible: num_preempt
+  }
+
+  output {
+    File chromosome_gene_windows = "gene_windows.tsv"
+    Array[File] gene_vcfs = glob("gene_inputs/*.vcf.gz")
+    Array[File] gene_vcf_indexes = glob("gene_inputs/*.vcf.gz.tbi")
+    Array[File] gene_qtl_files = glob("gene_inputs/*.qtl.tsv")
+    Array[String] gene_chrs = read_lines("gene_chrs.txt")
+    Array[String] gene_ids = read_lines("gene_ids.txt")
+    Array[String] safe_gene_ids = read_lines("safe_gene_ids.txt")
   }
 }
 
@@ -347,31 +439,53 @@ workflow aFC_workflow_split_by_gene {
       num_preempt = num_preempt
   }
 
-  scatter (gene_record in build_gene_afc_manifest.gene_records) {
-    call prepare_gene_afc_inputs {
+  scatter (chr in build_gene_afc_manifest.chromosomes) {
+    call split_vcf_by_chr {
       input:
         vcf_file = vcf_file,
         vcf_index = vcf_index,
-        afc_qtl_file = afc_qtl_file,
-        gene_record = gene_record,
+        chr = chr,
+        prefix = prefix,
         memory = memory,
         disk_space = disk_space,
         num_threads = num_threads,
         num_preempt = num_preempt
     }
 
+    call prepare_chromosome_afc_inputs {
+      input:
+        chr_vcf = split_vcf_by_chr.chr_vcf,
+        chr_vcf_index = split_vcf_by_chr.chr_vcf_index,
+        afc_qtl_file = afc_qtl_file,
+        gene_manifest = build_gene_afc_manifest.gene_manifest,
+        chr = chr,
+        memory = memory,
+        disk_space = disk_space,
+        num_threads = num_threads,
+        num_preempt = num_preempt
+    }
+  }
+
+  Array[File] gene_vcfs = flatten(prepare_chromosome_afc_inputs.gene_vcfs)
+  Array[File] gene_vcf_indexes = flatten(prepare_chromosome_afc_inputs.gene_vcf_indexes)
+  Array[File] gene_qtl_files = flatten(prepare_chromosome_afc_inputs.gene_qtl_files)
+  Array[String] gene_chrs = flatten(prepare_chromosome_afc_inputs.gene_chrs)
+  Array[String] gene_ids = flatten(prepare_chromosome_afc_inputs.gene_ids)
+  Array[String] safe_gene_ids = flatten(prepare_chromosome_afc_inputs.safe_gene_ids)
+
+  scatter (gene_index in range(length(gene_vcfs))) {
     call run_afc {
       input:
-        vcf_file = prepare_gene_afc_inputs.gene_vcf,
-        vcf_index = prepare_gene_afc_inputs.gene_vcf_index,
+        vcf_file = gene_vcfs[gene_index],
+        vcf_index = gene_vcf_indexes[gene_index],
         expression_bed = expression_bed,
         expression_bed_index = expression_bed_index,
         covariates_file = covariates_file,
-        afc_qtl_file = prepare_gene_afc_inputs.gene_qtl_file,
+        afc_qtl_file = gene_qtl_files[gene_index],
         prefix = prefix,
-        chr = prepare_gene_afc_inputs.gene_chr,
-        gene_id = prepare_gene_afc_inputs.gene_id,
-        safe_gene_id = prepare_gene_afc_inputs.safe_gene_id,
+        chr = gene_chrs[gene_index],
+        gene_id = gene_ids[gene_index],
+        safe_gene_id = safe_gene_ids[gene_index],
         memory = memory,
         disk_space = disk_space,
         num_threads = num_threads,
@@ -391,6 +505,9 @@ workflow aFC_workflow_split_by_gene {
 
   output {
     File gene_manifest = build_gene_afc_manifest.gene_manifest
+    Array[File] per_chr_vcfs = split_vcf_by_chr.chr_vcf
+    Array[File] per_chr_vcf_indexes = split_vcf_by_chr.chr_vcf_index
+    Array[File] chromosome_gene_windows = prepare_chromosome_afc_inputs.chromosome_gene_windows
     Array[File] per_gene_afc_reports = run_afc.afc_report
     File final_afc_report = merge_afc_reports.merged_afc_report
   }
