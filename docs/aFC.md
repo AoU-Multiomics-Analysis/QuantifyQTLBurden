@@ -73,7 +73,7 @@ Inputs:
 | `cis_window_bed` | File | BED-like gene cis-window table with columns `#chr`/`chr`, `start`, `end`, and `gene_id`. Only genes present in `afc_qtl_file` are scattered. |
 | `prefix` | String | Output file prefix. |
 | `memory` | Int | Memory in GB. Default: `16`. |
-| `disk_space` | Int | Extra disk space in GB. Default: `50`. |
+| `disk_space` | Int | Extra disk space in GB. Default: `1000`. |
 | `num_threads` | Int | Number of CPU threads. Default: `8`. |
 | `num_preempt` | Int | Number of preemptible retries. Default: `0`. |
 

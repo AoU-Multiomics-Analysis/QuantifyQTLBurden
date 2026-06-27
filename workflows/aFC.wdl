@@ -425,7 +425,7 @@ workflow aFC_workflow_split_by_gene {
     String prefix
 
     Int memory = 16
-    Int disk_space = 50
+    Int disk_space = 1000
     Int num_threads = 8
     Int num_preempt = 0
   }
