@@ -18,7 +18,7 @@ In this project, we used this to:
 - `vcf_file`: `bgzip`-compressed, tabix-indexed VCF.
 - `vcf_index`: matching index file (`.vcf.gz.tbi`) required as input.
 - `variant_list`: bcftools `-R` region file (no header). This should be plain region coordinates.
-- `sample_list`: plain sample ID list (no header), one sample per line.
+- `sample_list`: optional plain sample ID list (no header), one sample per line. If omitted, all samples are retained.
 - `OutputPrefix`: optional output prefix for the subset VCF.
 
 ## Notes on variant filtering
@@ -35,7 +35,7 @@ This is useful when you already have a filtered list of loci to keep and want fa
 
 1. Identify high-pip eQTL variants at the target gene set (intersection of genes with proteomic and transcriptomic observations).
 2. Convert that variant list to regions for bcftools `-R`.
-3. Build a sample list of proteomics-only individuals (exclude RNA-seq profiled individuals if that is the validation design).
+3. Optionally build a sample list of proteomics-only individuals (exclude RNA-seq profiled individuals if that is the validation design).
 4. Run `SubsetVCF.wdl` to generate:
    - `subset_vcf` (`.vcf.gz`)
    - `index` (`.vcf.gz.tbi`)

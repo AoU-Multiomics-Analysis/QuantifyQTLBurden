@@ -5,7 +5,7 @@ task SubsetVCFTask {
         File vcf_file
         File vcf_index
         File variant_list
-        File sample_list
+        File? sample_list
         String OutputPrefix
     }
 
@@ -14,10 +14,15 @@ task SubsetVCFTask {
 
     INPUT_VCF="~{vcf_file}"
     SUBSET_VCF=~{OutputPrefix}.vcf.gz
+    SAMPLE_LIST="~{sep=" " select_all([sample_list])}"
+    SAMPLE_LIST_ARGS=()
+    if [[ -n "${SAMPLE_LIST}" ]]; then
+        SAMPLE_LIST_ARGS=(-S "${SAMPLE_LIST}")
+    fi
 
     bcftools view \
         -R ~{variant_list} \
-        -S  ~{sample_list} \
+        "${SAMPLE_LIST_ARGS[@]}" \
         -Oz \
         -o "${SUBSET_VCF}" \
         "${INPUT_VCF}"
@@ -45,7 +50,7 @@ workflow SubsetVCF {
         File vcf_file
         File vcf_index
         File variant_list
-        File sample_list
+        File? sample_list
         String OutputPrefix = "subset_vcf"
     }
     
