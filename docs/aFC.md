@@ -46,17 +46,18 @@ Outputs:
 
 ## aFC Workflow
 
-[`../workflows/aFC.wdl`](../workflows/aFC.wdl) runs aFC by chromosome and merges per-chromosome reports.
+[`../workflows/aFC.wdl`](../workflows/aFC.wdl) runs aFC by gene and merges per-gene reports.
 
 Workflow:
 
-- `aFC_workflow_split_by_chr`
+- `aFC_workflow_split_by_gene`
 
 Tasks:
 
-- `split_vcf_by_chr`: subsets and indexes the VCF for one chromosome.
-- `run_afc`: runs `/opt/aFC/aFC.py` on the chromosome-specific VCF, expression BED, covariates, and QTL file.
-- `merge_afc_reports`: concatenates chromosome-level aFC outputs into one gzipped report.
+- `build_gene_afc_manifest`: joins the QTL file to a cis-window BED and creates one scatter record per gene.
+- `prepare_gene_afc_inputs`: creates a gene-specific QTL file and subsets/indexes the VCF to that gene's cis window.
+- `run_afc`: runs `/opt/aFC/aFC.py` on the gene-specific VCF, expression BED, covariates, and QTL file.
+- `merge_afc_reports`: concatenates gene-level aFC outputs into one gzipped report.
 
 Inputs:
 
@@ -68,8 +69,8 @@ Inputs:
 | `expression_bed_index` | File | Tabix index for `expression_bed`. |
 | `covariates_file` | File | Covariates file in the format expected by aFC. |
 | `afc_qtl_file` | File | QTL file containing at least `pid`, `sid`, `sid_chr`, and `sid_pos`. |
+| `cis_window_bed` | File | BED-like gene cis-window table with columns `#chr`/`chr`, `start`, `end`, and `gene_id`. Only genes present in `afc_qtl_file` are scattered. |
 | `prefix` | String | Output file prefix. |
-| `chromosomes` | Array[String]? | Optional chromosome list. Defaults to `chr1`-`chr22`, `chrX`, and `chrY`. |
 | `memory` | Int | Memory in GB. Default: `16`. |
 | `disk_space` | Int | Extra disk space in GB. Default: `50`. |
 | `num_threads` | Int | Number of CPU threads. Default: `8`. |
@@ -79,8 +80,9 @@ Outputs:
 
 | Output | Description |
 | --- | --- |
-| `per_chr_afc_reports` | Per-chromosome aFC reports: `<prefix>.<chr>.aFC.txt.gz`. |
-| `final_afc_report` | Merged aFC report across chromosomes: `<prefix>.aFC.txt.gz`. |
+| `gene_manifest` | Gene scatter manifest with `chr`, `start`, `end`, `gene_id`, and safe file-name gene ID columns. |
+| `per_gene_afc_reports` | Per-gene aFC reports: `<prefix>.<gene_id>.aFC.txt.gz` using a file-safe gene ID. |
+| `final_afc_report` | Merged aFC report across genes: `<prefix>.aFC.txt.gz`. |
 
 ## Data Requirements
 
@@ -96,3 +98,12 @@ The QTL file must contain at least:
 | `sid` | Variant ID in `CHROM:POS_REF_ALT` format. |
 | `sid_chr` | Variant chromosome. |
 | `sid_pos` | Variant position. |
+
+The cis-window BED must contain at least:
+
+| Column | Description |
+| --- | --- |
+| `#chr` or `chr` | Chromosome for the gene cis window. |
+| `start` | Start coordinate for the cis window. |
+| `end` | End coordinate for the cis window. |
+| `gene_id` | Gene ID matching `pid` in the QTL file. |

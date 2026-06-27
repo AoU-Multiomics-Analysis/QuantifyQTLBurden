@@ -12,7 +12,7 @@ The workflows stay separate:
 | Stage | Workflow | Use when |
 | --- | --- | --- |
 | aFC preprocessing | [`workflows/preprocess_AFC_inputs.wdl`](workflows/preprocess_AFC_inputs.wdl) | VCF IDs or expression BED indexing need to be prepared for aFC. |
-| aFC calculation | [`workflows/aFC.wdl`](workflows/aFC.wdl) | Computing aFC weights by chromosome and merging them. |
+| aFC calculation | [`workflows/aFC.wdl`](workflows/aFC.wdl) | Computing aFC weights by gene and merging them. |
 | QTL burden | [`workflows/QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl) | Computing per-individual, per-gene burden from aFC weights and genotypes. |
 | Burden cleaning | [`workflows/CleanQTLBurden.wdl`](workflows/CleanQTLBurden.wdl) | Annotating an existing merged burden file. |
 | VCF subsetting | [`workflows/SubsetVCF.wdl`](workflows/SubsetVCF.wdl) | Subsetting cohorts or variants (commonly used for proteomics-only validation cohorts). |
@@ -21,7 +21,7 @@ The workflows stay separate:
 
 1. Prepare a QTL file with at least `pid`, `sid`, `sid_chr`, and `sid_pos`.
 2. Run [`workflows/preprocess_AFC_inputs.wdl`](workflows/preprocess_AFC_inputs.wdl) unless your VCF and expression BED are already formatted and indexed for aFC.
-3. Run [`workflows/aFC.wdl`](workflows/aFC.wdl) to produce `<prefix>.aFC.txt.gz`.
+3. Run [`workflows/aFC.wdl`](workflows/aFC.wdl) with a gene cis-window BED to produce `<prefix>.aFC.txt.gz`.
 4. Filter or prepare the resulting aFC weights for burden analysis.
 5. Run [`workflows/QuantifyQTLBurden.wdl`](workflows/QuantifyQTLBurden.wdl).
 6. Re-run [`workflows/CleanQTLBurden.wdl`](workflows/CleanQTLBurden.wdl) only when cleaning or annotation needs to be repeated separately.
