@@ -9,7 +9,9 @@ task IndexVCFTask {
     command <<<
     set -euo pipefail
 
-    tabix -p vcf ~{vcf_file}
+    bcftools index --tbi --force \
+        --output "~{basename(vcf_file)}.tbi" \
+        "~{vcf_file}"
     >>>
 
     runtime {
@@ -21,7 +23,7 @@ task IndexVCFTask {
     }
 
     output {
-        File vcf_tbi = "~{vcf_file}.tbi"
+        File vcf_tbi = "~{basename(vcf_file)}.tbi"
     }
 }
 
