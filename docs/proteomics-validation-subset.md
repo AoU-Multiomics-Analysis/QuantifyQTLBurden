@@ -20,7 +20,6 @@ In this project, we used this to:
 - `variant_list`: bcftools `-R` region file (no header). This should be plain region coordinates.
 - `sample_list`: optional plain sample ID list (no header), one sample per line. If omitted, all samples are retained.
 - `OutputPrefix`: optional output prefix for the subset VCF.
-- `num_threads`: optional thread count for VCF annotation/compression. Defaults to `1`.
 
 ## Notes on variant filtering
 
@@ -38,7 +37,7 @@ This is useful when you already have a filtered list of loci to keep and want fa
 2. Convert that variant list to regions for bcftools `-R`.
 3. Optionally build a sample list of proteomics-only individuals (exclude RNA-seq profiled individuals if that is the validation design).
 4. Run `SubsetVCF.wdl` to generate:
-   - `subset_vcf` (`.vcf.gz`) with variant IDs annotated as `CHROM:POS_REF_ALT`
+   - `subset_vcf` (`.vcf.gz`)
    - `index` (`.vcf.gz.tbi`)
 5. Pass the subset outputs into the downstream burden steps as needed.
 

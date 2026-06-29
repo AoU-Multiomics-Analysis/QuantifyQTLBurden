@@ -7,7 +7,6 @@ task SubsetVCFTask {
         File variant_list
         File? sample_list
         String OutputPrefix
-        Int num_threads
     }
 
     command <<<
@@ -15,22 +14,13 @@ task SubsetVCFTask {
 
     INPUT_VCF="~{vcf_file}"
     SUBSET_VCF=~{OutputPrefix}.vcf.gz
-    SAMPLE_LIST="~{sep=" " select_all([sample_list])}"
-    SAMPLE_LIST_ARGS=()
-    if [[ -n "${SAMPLE_LIST}" ]]; then
-        SAMPLE_LIST_ARGS=(-S "${SAMPLE_LIST}")
-    fi
 
     bcftools view \
         -R ~{variant_list} \
-        "${SAMPLE_LIST_ARGS[@]}" \
-        -Ou \
-        "${INPUT_VCF}" | \
-    bcftools annotate --threads ~{num_threads} \
-        --set-id '%CHROM\:%POS\_%REF\_%FIRST_ALT' \
+        ~{if defined(sample_list) then "-S " + sample_list else ""} \
         -Oz \
         -o "${SUBSET_VCF}" \
-        -
+        "${INPUT_VCF}"
 
     bcftools index -t "${SUBSET_VCF}"
     >>>
@@ -39,7 +29,7 @@ task SubsetVCFTask {
         docker: "ghcr.io/aou-multiomics-analysis/quantifyqtlburden/subsetvcf:main"
         memory: "256GB"
         disks: "local-disk 500 HDD"
-        cpu: num_threads
+        cpu: "1" 
         preemptible: "0" 
     }
     
@@ -57,7 +47,6 @@ workflow SubsetVCF {
         File variant_list
         File? sample_list
         String OutputPrefix = "subset_vcf"
-        Int num_threads = 1
     }
     
     call SubsetVCFTask {
@@ -66,8 +55,7 @@ workflow SubsetVCF {
             vcf_index = vcf_index,
             variant_list = variant_list,
             sample_list = sample_list,
-            OutputPrefix = OutputPrefix,
-            num_threads = num_threads
+            OutputPrefix = OutputPrefix
 
     }
     output {
