@@ -12,7 +12,7 @@ task SubsetVCFTask {
     command <<<
     set -euo pipefail
 
-    INPUT_VCF="~{vcf_file}"
+    INPUT_VCF="~{vcf_file}##idx##~{vcf_index}"
     SUBSET_VCF=~{OutputPrefix}.vcf.gz
 
     bcftools view \
